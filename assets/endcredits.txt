@@ -1,0 +1,59 @@
+<!--
+GRAVITY LEON - the end credits. They roll up the right two thirds of the screen at the end
+(the Love room's tower), each line centred. The game reads this file as it starts.
+
+  # A title                       (big)
+  ## A subtitle                   (middle)
+  any other line                  (normal)
+  an empty line                   (a gap)
+  **bold**   *italic*   ***bold and italic***
+  {pink}a colour{/}  - by name: red orange yellow green blue violet pink gold grey black white
+                       or as #rrggbb, e.g. {#3a6ec8}blue{/}
+  \*                              (a star itself)
+  ^^                              (a red heart, as tall as a capital; \^^ the marks themselves)
+  ![0.5](assets/a picture.png)    (a picture, PNG, on a line of its own, centred: 0.5 = half the
+                                   two thirds' width; its height follows its own proportions)
+
+Anything between these two marks is left out.
+-->
+
+## Concept, design, art and code orchestration
+
+Niko/Factory, with additional help from Myr^^ and Ris^^.
+
+## Music
+
+Easy and Hard runs : "Tartopom", by tno/Factory, 1997
+Dark and Harder runs : "World Of Pistou II", by tno/Factory, 1998
+Cameleon run : "Dying Respect", by tno/Factory, 1999
+Love run : "Palindrome au piano", Niko/Factory, 2002
+Solo run : "Power Plant (Ultimate Fan Mix)", by tno/Factory, 2002
+
+## Game testers
+
+Simon, Yann, Nathan, Alice M
+Epti, Gaïa, Alex, Fairouz
+Flo^^, Alice P, Gabriel, Nico M, tno
+
+Thank you !
+
+## About the code
+
+Vibecoded with Claude Code Opus 5.5 Extra High
+Made in C++ with raylib and SDL GameControllerDB
+Method : multimodal approach combining...
+  1. lengthy text prompts 
+  2. hand drawn prompts (paper and computer)
+  3. in-game reporting system with snapshot + user input
+
+Rough estimate : about 50 hours of human work 
+(excluding music, composed a quarter of a century ago)
+
+![0.7](assets/making-of/level - easy hard.png)
+![0.7](assets/making-of/level - dark harder.png)
+![0.7](assets/making-of/level - cameleon.png)
+
+Factory production -- Fall 2026 -- niko@nemelith.org
+
+## Thank you for playing !
+

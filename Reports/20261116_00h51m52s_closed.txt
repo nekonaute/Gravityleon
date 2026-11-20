@@ -1,0 +1,15 @@
+remove 2x2 tiles above Leon
+
+--- report data LOST (2026-11-16): overwritten by mistake when this report was closed, and no copy was kept.
+--- Rebuilt from what was read of it before: its text above and these lines only (no params, no full state).
+level.size: 313 605
+leon.tile: 105.93 8.52
+leon.gravity: 0
+leon.onGround: 1
+leon.god: 0
+tongue.state: none
+camera: 4237.14 341.00
+belly: -1 9.66
+key.held: 0 0 0 0
+screen: 1920 1200   (fullscreen 1)
+--- addressed 2026-11-16: not done, by the user's choice (asked: it overlapped report 00h55, whose mirrored ice runs up there) -- the swap of 00h55 only.

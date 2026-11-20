@@ -1,0 +1,15 @@
+the heart monstermunch should be oriented downwards.
+
+--- report data LOST (2026-11-16): overwritten by mistake when this report was closed, and no copy was kept.
+--- Rebuilt from what was read of it before: its text above and these lines only (no params, no full state).
+level.size: 313 601
+leon.tile: 102.42 4.53
+leon.gravity: 0
+leon.onGround: 1
+leon.god: 0
+tongue.state: none
+camera: 4095.33 181.00
+belly: -1 0.00
+key.held: 0 0 0 0
+screen: 1920 1200   (fullscreen 1)
+--- addressed 2026-11-16: a bug: on the map's top row, the heart Monstermunch took the outside of the map for open and faced it (up). Now a Monstermunch never faces off the map; it faces down, into its shaft (moved off the edge too: report 00h39m51). Picture: screenshots/20261116_0044_heart-munch-in-its-shaft-faces-down.png.

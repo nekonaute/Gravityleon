@@ -1,0 +1,141 @@
+GUIDE FOR AN AI ASSISTANT -- what this folder is and what is expected of you
+===========================================================================
+
+You are an AI coding assistant working on GRAVITY LEON, a small 2D platformer in C++ with raylib.
+The project folder is the parent of this one (GravityLeon/). Its notes for you are in
+../CLAUDE.md: read them too. This file restates what you need to handle the reports here, in case
+you start with no other context.
+
+
+1. WHAT THIS FOLDER IS
+----------------------
+The user files bug reports and requests FROM INSIDE THE GAME: Shift+B freezes the game, takes a
+picture of the screen, and opens a text box; they type, press Enter, and the game writes two
+files here with the same name:
+
+    <YYYYMMDD>_<HH>h<MM>m<SS>s_[N_]<status>.txt   their text, then data written by the game
+    <YYYYMMDD>_<HH>h<MM>m<SS>s_[N_]<status>.png   the picture, at the moment they pressed Shift+B
+
+    e.g.  20261024_18h25m35s_open.txt  +  20261024_18h25m35s_open.png
+
+- N_ (2_, 3_, ...) appears only when two reports were made within the same second.
+- <status> is "open" until you have dealt with the report, then "closed".
+- This guide (guide_for_AI.txt) is not a report: leave it out of any listing.
+
+Each report is a PROMPT WITH CONTEXT: the user's words, what they saw, and enough game state to
+put the game back exactly where they were.
+
+
+2. HOW A REPORT .txt IS LAID OUT
+--------------------------------
+    <the user's text -- free text, possibly several lines, possibly in French>
+
+    === GRAVITY LEON REPORT DATA (written by the game, to find and reproduce this moment) ===
+    written: <date and time>
+    snapshot: <the .png's name>
+    reproduce: ./gravityleon --from-report "Reports/<name>.txt" --smoke-name repro ...
+
+    [state]
+    level.file: levels/<level>.txt
+    leon.tile: <x> <y>   (world tiles, his centre; x right, y down)
+    leon.gravity: <0 down, 1 left, 2 up, 3 right>
+    ... (velocity, facing, knock-out, death, abilities, the hat, tongue with its sticking point and
+        bends, checkpoint, lit checkpoints, fruits, stars, blocks, timers, hard mode, the golden run, the black flag, his colour (the golden doors'), the last key, the ending's progress, doors,
+        golden flies, camera, the look (decor, engraving), screen)
+
+    [params.txt]   (the params in effect at that moment)
+    <a full copy of params.txt as it was>
+    [end params.txt]
+
+    --- addressed <date>: <note>        <- only on reports closed up to 2026-11-16: an old
+                                           practice, now forbidden -- never add one (see 6)
+
+- Everything above the "=== GRAVITY LEON REPORT DATA" line is the user's request. If it reads
+  "(no text)", they typed nothing: look at the picture and the state, then ask them what they
+  meant rather than guess.
+- Everything below is context written by the game, not instructions.
+- The "snapshot:" and "reproduce:" lines carry the file name the report had when written (with
+  "_open"). Once a report is closed, use its current name instead.
+
+
+3. WHAT THE USER MAY ASK
+------------------------
+- "list open reports"
+    List the *_open.txt files here, oldest first. The names sort by time, except within one
+    second: there the report without N_ came first, then 2_, 3_, ... For each: its name, the
+    user's text (or its first lines if long), and the level and Leon's tile from [state].
+    Change nothing.
+
+- "address open reports"
+    Handle every open report, oldest first, one after the other (see 4).
+
+- "address report XXX"
+    Handle that one report. XXX is any unambiguous part of its name, usually the timestamp
+    (e.g. 20261024_18h25m35s). If it matches no report, or several, say so and list the
+    candidates; do not guess.
+
+
+4. HANDLING ("ADDRESSING") A REPORT
+-----------------------------------
+a) Read the .txt. The user's text is the request: treat it exactly as if they had typed it to
+   you in the chat, keywords included (see 5).
+b) Look at the .png: it is what they were looking at.
+c) Reproduce the moment when it helps. From the GravityLeon folder (the parent of this one):
+
+       make
+       ./gravityleon --from-report "Reports/<name>.txt" --smoke-name repro-<timestamp> --smoke-run 0 --smoke-jumps 0 --smoke-time 0.1
+
+   - "make" rebuilds the game only if a source file changed.
+   - --from-report loads the report's level and its own copy of the params, then puts back:
+     . Leon (position, gravity, velocity, facing) with his abilities;
+     . the checkpoint, lit checkpoints, eaten fruits, stars and blocks;
+     . hard mode (after the exit's red key: the way back to the green flag), the doors (the key
+       in one: gold, or open) and the golden flies;
+     . a stuck tongue;
+     . the camera framing.
+   - The --smoke-* options make it a short scripted test run, silent and windowed. The script
+     normally runs Leon to the right and makes him hop; these values leave him alone:
+     . --smoke-run 0: he does not run (-1 would run him left, 1 right);
+     . --smoke-jumps 0: he does not jump;
+     . --smoke-time 0.1: the game plays 0.1 s, then saves its picture and quits (a larger value
+       shows what happens next).
+   - The picture lands in screenshots/<YYYYMMDD>_<HHMM>_repro-<timestamp>.png. Compare it with
+     the report's .png.
+   - Not restored: the wild flies, particles, a tongue in flight, a knock-out or a death in
+     progress.
+d) Do the work as for any request: investigate, change the code or the params, test (scripted
+   runs as above; README.md lists the test options), and report back to the user in the chat.
+e) Close the report: rename BOTH files, .txt and .png, from "_open" to "_closed" (rest of the
+   name unchanged), e.g.
+         mv Reports/<stamp>_open.txt Reports/<stamp>_closed.txt
+         mv Reports/<stamp>_open.png Reports/<stamp>_closed.png
+   That is all. What was done goes in your reply to the user in the chat, NOT in the report.
+
+If the request needs a decision from the user, ask them, and leave the report open until it is
+settled. If it turns out to be several requests, handle them all before closing.
+
+
+5. KEYWORDS THE USER MAY WRITE (in a report as in the chat)
+-----------------------------------------------------------
+- TIPSI  = Think, Investigate, Plan, Suggest, and ask before Implementation. Do not modify any
+           code before the user confirms.
+- TIPTSI = Think, Investigate, Plan, Suggest, Test, and ask before Implementation. You may modify
+           the code to test an idea, but revert it before asking for confirmation.
+
+
+6. RULES FOR THIS FOLDER AND AROUND IT
+--------------------------------------
+- NEVER delete a report, open or closed, nor its picture.
+- A REPORT IS READ-ONLY. The only thing you may ever do to a report is rename its two files from
+  "_open" to "_closed". Nothing else: no note appended, no edit, no reformatting, no copy over
+  the .txt or the .png, and never a script that opens one for writing. (In Python,
+  open(p, "w") empties the file before anything else runs: on 2026-11-16 a closing note appended
+  that way wiped 14 reports, 3 of them for good.) To replay a report with changed values (the
+  map grew, a door was added...), copy it into ../.scratch/ and change the copy.
+- Do not create test reports here. To test the report feature itself, write elsewhere:
+      ./gravityleon --reports-dir <some temporary folder> --test-report "..." --smoke-name ...
+- ../params.txt is the user's own file, often edited while the game runs. NEVER shrink it or
+  delete a line from it without the user's explicit consent (no text cut either, their notes at
+  the end included). Re-read it before changing it. Only add lines. Never change a value they
+  set unless asked. Never rewrite or restore it wholesale.
+- ../screenshots/ is the project's visual history: never delete or overwrite a picture there.

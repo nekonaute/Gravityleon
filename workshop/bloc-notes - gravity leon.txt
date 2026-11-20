@@ -1,0 +1,68 @@
+current rendering is raw, or yoshi-like. Add a third one: black and white steam punk, with only clouds behind, and the rest steam punk like a XIXth century gravure from Gustave Doré. the two other rendering should remain unchanged. It is possible to set it from start in params.txt (but dont do it, just add it as comment).
+
+- convert levels to Tiles fileformat. Put the results in subdir "levels". Then change the game so that levels are loaded from this subdir, in Tiles format. see https://www.mapeditor.org
+
+
+
+Un niveau super dur:
+- glace
+- suspendu
+- des pièges
+
+-----
+
+
+1. 
+
+INCLUDE IMAGES
+
+- see the two attached images from problem with tongue placement
+- see the two attached images for when Leon should fall off a platform: current one (wrong) and desired one *after* which Leon should fall. Note that with the new mechanic, Leon should automatically move so that it falls as before, i.e., nothing changes really except that if in a position where i now say it should fall then it automatically move forward until fall is triggered (then, same as before: continue with momentum if any). 
+
+2. 
+
+- tongue thrown : make it twice faster (set in params.txt)
+- tongue sticked, walking away: when reaching the max stretching, show some resistance, not an abrupt limit to walking. Also, legs are going slow but it looks as Leon is skating. Not good: make it go slow but walking: ie. foot part remains on same location for some longer time than when normally walking.
+- when swallowing the tongue while it is still stuck, pour out some saliva
+- when tongue is sticked, going up swallow it (that's already implemented, dont touch it), doing nothing slowly extends it to max length, and - NEW - going down extends it twice faster (eyes grow momentarily, a bit more saliva effect from mouth too).
+- maximum tongue length: reveal it as a parameter. make 25% more than currently.
+
+2.bis
+
+modification : use RT and LT to swallow (one-time per trigger) and extends quicker (continuous when triggered)
+
+3. 
+
+- add another type of platform which only feature is that they are slippy: tongue cannot attach to it. Also: it is slippy, so Leon slides on it (speed depends on momentum when landed on it). add some little soap bubble effect at the feet of Leon, quantity depends on speed. bubbles grow a bit then pop (dashed circle suddenly expanding, very very short)
+- add blocks: block are of twice the size of Leon, they can be moved by sticking Leon's tongue on it and pulling by moving. Speed is halved, Leon walk animation is slower and look more difficult (tilted forward, eyes half closed, looking at the block). Block can fall (possibly roll). Block slide on slippy platform.
+- add deadly platform : "dark matter" decorated platform which kills Leon. If touched, Leon explodes into 16 small cubes bouncing and stopping. Then, fade out, the back to start (see below for checkpoint). 
+- add fruits (size of Leon). The Lemon gives the double jump. The Apricot gives the tongue ability. Display a message when eaten : "Leon ate the DOUBLE JUMP fruit (press A twice)" and "Leon ate the TONGUE fruit (press B)". Position the fruit a bit right and left from Leon at startup. Of course, fruits unlock abilities. 
+
+- The PINEAPPLE is used for checkpoints (catch it by touching or tongue swallow (same effect as eating fly) if dies, start there again - display "checkpoint" when eaten). 
+- death: fade to black by first everything fades to black except the player's small pieces (in 1 sec), pieces bounces on existing landscape/object and then fade to black (after 1 sec, and for 1 sec) . when start again: fade in quickly (0.5 sec), momentum lost, appear at last saved starting position (which can be in the air if checkpoint was in the air). all params in params.txt
+
+
+4. 
+
+- add music: play infinite loop of "03 - tno - Tartopom.mod" (in assets subdir). switch on/off music in params.txt
+- add sound: add some sounds for each actions: small steps synced with foot on floor, tongue stretching, swallowing, stucking, release ; taking a fruit ; jump. Dont make them too loud.
+
+Level design:
+- level should be selected in params.txt
+- current demo level should named "testing ground"
+- then make a level using "level design 01" asset. You can make adjustment so that distance between platforms are ok. add some flies. The general idea is to be incremental in difficulty and (1) show platformer (2) show gravity (3)show swinging with tongue above non-deadly ground, then deadly ground (4) (last room) show gravity with necessary tongue swinging (ie. tongue swings between gravity platforms). Movable blocs: they are not subject to physics unless seen in screen, if seen once and a physics force applies, execute it till done even if go off-screen. Finish with an escape door. (then: "Level completed in <time>" and suggest restart by pressing "r".)
+- when making a level: think about positioning so the player can jump to nearby platform if it looks like it could. Dont do too many text, i will test myself.
+
+
+- sliding blocs: player animation look like a little unbalance (oscillating slowly left/right from nominal position - ie. not moving: symmetric osc, moving: osc around inclination)
+- add a sound when dies
+- change decorative for death zone. Something like a black hole (animated)
+- start fullscreen (params.txt), mouse pointer not shown in full screen.
+- startup: "GRAVITY LEON" spanning full horizontal, vertically centered, letter are black border, grey content, fade out in 2 sec. bottom-center: "Vibecoder: Niko/Factory, music: tno - October 2026" (small fontsize)
+
+- decorate to mimick the design of an 8-bit version of Yoshi's adventure. Decoration should be able to switch off/on (params.txt) and with key upper case "s" (so: maj+s)
+
+4. 
+
+TODO: Position des pieds quand en l'air
+TODO: le balancier s'amplifie sans raison (quand collision intermédiaire sur la langue)

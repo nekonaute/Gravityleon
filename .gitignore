@@ -1,0 +1,12 @@
+# Local builds and playtest output
+/gravityleon
+/gravityleon.exe
+/dist/
+/.scratch/
+/screenshots/
+/data/
+
+# Editor and Python artifacts
+.DS_Store
+__pycache__/
+*.py[cod]

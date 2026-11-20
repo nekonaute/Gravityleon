@@ -1,0 +1,15 @@
+remove one tile below Leon, and move the balloon pole here.
+
+--- report data LOST (2026-11-16): overwritten by mistake when this report was closed, and no copy was kept.
+--- Rebuilt from what was read of it before: its text above and these lines only (no params, no full state).
+level.size: 313 605
+leon.tile: 106.61 8.52
+leon.gravity: 0
+leon.onGround: 1
+leon.god: 1
+tongue.state: none
+camera: 4264.49 341.00
+belly: -1 -0.01
+key.held: 0 0 0 0
+screen: 1920 1200   (fullscreen 1)
+--- addressed 2026-11-16: the tile under Leon (map (106,9), in the corridor's floor) opened, and the magenta balloon pole moved into it, standing in that notch (off the lower Monstermunch). Picture: screenshots/20261116_0811_pole-in-floor-notch-two-ceiling-munches.png.

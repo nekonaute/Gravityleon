@@ -1,0 +1,22 @@
+# SDL gamepad mappings, fed to raylib's SetGamepadMappings at startup.
+#
+# raylib reads a pad only through GLFW, and GLFW ignores any device it has no mapping for:
+# the pad shows up as connected while every axis and button stays frozen. This file is the fix.
+# The line below is the Xbox Wireless Controller (macOS), from Hydropostal. Its axes were measured
+# there (the triggers a5 = left, a4 = right: deliberate); its buttons were a guess, b0..b10 in a
+# row -- wrong: this pad's buttons come with gaps (b2, b5, b8, b9 unused), so the sticks pushed in
+# (the suicide) never came through. They now follow SDL's mapping for this pad: X b3, Y b4, LB b6,
+# RB b7, View b10, Menu b11, Xbox b12, the sticks in b13 and b14. Read at startup -- edit it
+# without rebuilding.
+#
+# A pad's GUID holds its firmware version, so an update -- or another pad -- needs a line of its
+# own: the game logs any connected pad with no line here ("INPUT: pad ... has no line"), and
+# `./gravityleon --pad-check` prints its GUID, then what it sends as you press things. A new Xbox
+# pad over Bluetooth: copy the line, change the GUID.
+#
+# NOT here: the Xbox Series controller on its cable (USB product 0b12). That way it sends only
+# Microsoft's own protocol (GIP), which no line here can map -- the game reads it by hand
+# (src/padcheck.cpp, gipStart).
+#
+# Format: GUID,Name,platform:Mac OS X,a:b0,b:b1,...  (one mapping per line)
+030000005e040000130b000023050000,Xbox Wireless Controller,platform:Mac OS X,a:b0,b:b1,x:b3,y:b4,back:b10,guide:b12,start:b11,leftstick:b13,rightstick:b14,leftshoulder:b6,rightshoulder:b7,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:a5,righttrigger:a4,

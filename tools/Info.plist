@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The macOS app's description (make dist_mac copies it into GravityLeon.app/Contents/). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Gravity Leon</string>
+	<key>CFBundleDisplayName</key>
+	<string>Gravity Leon</string>
+	<key>CFBundleExecutable</key>
+	<string>GravityLeon</string>
+	<key>CFBundleIconFile</key>
+	<string>GravityLeon</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.gravityleon.game</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.games</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+</dict>
+</plist>

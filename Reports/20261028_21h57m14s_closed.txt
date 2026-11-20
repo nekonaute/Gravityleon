@@ -1,0 +1,311 @@
+Leon's tongue is on a square element of the level. Remove this square.
+
+=== GRAVITY LEON REPORT DATA (written by the game, to find and reproduce this moment) ===
+written: 2026-10-28 21:57:14
+snapshot: 20261028_21h57m14s_open.png
+reproduce: ./gravityleon --from-report "Reports/20261028_21h57m14s_open.txt" --smoke-name repro --smoke-run 0 --smoke-jumps 0 --smoke-time 0.1
+
+[state]
+level.file: levels/level 01.txt
+level.size: 172 112   (tiles of 40 px)
+time.game: 808.607
+time.run: 254.652   (the clock on screen)
+completed: 1
+leon.tile: 133.46 17.84   (world tiles, his centre; x right, y down)
+leon.centre: 5338.48 713.60   (world pixels)
+leon.gravity: 0   (0 down, 1 left, 2 up, 3 right)
+leon.velocity: -392.91 -242.21   (his frame: x across gravity, y along it)
+leon.facing: 1
+leon.onGround: 0
+leon.knock: none
+leon.dead: 0
+leon.abilities: 1 1   (double jump, tongue)
+leon.hat: 1 -1.000   (wearing it; seconds since it took a bump, -1 whole)
+hat.taken: 1   (from its spot in the level)
+tongue.state: stuck
+tongue.length: 103.83
+tongue.block: -1 41.00 19.87   (block it is stuck to, -1 none; offset)
+tongue.bends: 1   (the sticking point, then the corners it bends round)
+tongue.point.0: 5399.00 629.29 0
+checkpoint.feet: 4260.00 1079.00   (where he comes back, world pixels)
+checkpoint.gravity: 0
+checkpoints.lit: 00100001   (in map order)
+checkpoints.gone: 11011110   (hard mode: taken away)
+checkpoints.gravity: - 0 0 0 3 - 3 1   (each one's first touch, in map order; - never)
+checkpoint.pine: 2   (the one he comes back to, its number in map order; -1 the start)
+hard.mode: 1 0 540.929 4   (on, back home -- the green flag up --, its clock, next waypoint)
+fruits.eaten: 11
+cherries.eaten: 1
+stars.taken: -
+blocks: 1
+block.0: 6063.05 3360.01 -0.00 0.00 0.00 0 0 1   (centre x y, velocity x y, angle, awake, mode, touched)
+flies.golden: 1   (following Leon)
+camera: 5414.58 701.96   (world pixels, the screen's centre)
+decor: 0
+engraving: 0
+screen: 1920 1200   (pixels; fullscreen 1)
+
+[params.txt]   (the params in effect at that moment)
+# GRAVITY LEON -- tuning. Saved changes are picked up while the game runs (checked twice a second).
+# Units: world pixels (one tile = 40) and seconds.
+
+# --- Display ----------------------------------------------------------------------------------
+fullscreen = True     # start fullscreen (F toggles); the mouse pointer is hidden while it is
+decor       = False    # the 8-bit decor (Yoshi's Island-like); Shift+S switches it in the game
+decor_pixel = 3       # ...drawn this many screen pixels to one
+# decor = engraving   <- a third look: black and white steampunk, a 19th-century engraving after
+#                        Gustave Dore, only clouds behind. Shift+S now cycles: sketch, 8-bit, engraving.
+engraving_line_spacing = 3.5   # the engraving's hatching: pixels between its lines (on a 720-line screen)
+engraving_cloud_wind   = 1.0   # its three layers of clouds drift in the wind: 1 = slowly (seen when Leon stands still)
+engraving_sky_line_spacing = 5.0   # its clouds: pixels between the lines in their shade -- the open sky's, twice that (720-line screen)
+display_Leon_bar_decorator = False   # the vertical line inside Leon, on the side away from where he faces (True: drawn, as before)
+# Title screen: it waits for A. "Press A" blinks softly and rides a wave, letter by letter.
+title_press_wave_amplitude = 1     # in letter heights
+title_press_wave_period    = 1.5   # seconds
+title_press_blink_period   = 2     # seconds
+title_press_font_size      = 48    # pixels on a 720-line screen (scaled to the real one)
+title_press_alpha_min      = 0.7   # blinking between this opacity...
+title_press_alpha_max      = 1.0   # ...and this one
+title_fade_time            = 0.5   # seconds for the title to vanish once A is pressed
+title_help                 = False # the help (the controls, 4 lines at the bottom) under the title and a few seconds into the game; True: shown
+
+# --- Level ---------------------------------------------------------------------------------
+# Which level to play: a file in levels/ (without .txt). Switching it while the game runs
+# loads the level at once.  testing ground | level 01
+level = level 01
+
+# --- Running -------------------------------------------------------------------------------
+# Top speed for a command u in -1..1 is  v_max = run_speed * G(|u|) * u
+# with the gain  G(u) = run_gain_min + (1 - run_gain_min) * u^run_gain_exp
+# -> a slow command has a low gain (precise steps), a full command the full gain.
+run_speed       = 340
+run_gain_min    = 0.3
+run_gain_exp    = 2
+
+# Non-linear acceleration: accel = floor + k * |target - speed|  (pushes hardest when far off)
+run_accel_floor = 500
+run_accel_k     = 6
+run_decel_floor = 900     # letting go
+run_decel_k     = 10
+run_turn_accel  = 3200    # reversing direction: a skid
+
+# Keys and D-pad are on/off, so their command ramps: it starts at key_command_start and
+# reaches 1 after key_command_ramp seconds. A tap walks, a long press runs.
+key_command_start = 0.3
+key_command_ramp  = 0.35
+
+# Steering a jump or a fall: fraction of the ground acceleration, with and without input.
+air_control = 0.6
+air_drag    = 0.3
+
+# An edge: once his middle is past it he can't stand there -- he steps off (at least this fast,
+# more if he was already moving that way), then falls as usual.
+edge_step_off_speed = 120
+
+# Lean on the ground: a springy body on the legs. It leans forward with speed, but acceleration
+# throws it the other way: starting off it rocks back, then tenses forward; braking pitches it
+# further forward, then it springs back upright with a little wobble.
+lean_running   = 6      # degrees forward at full speed
+lean_inertia   = 3.5    # how far speeding up throws the body back
+lean_brake_inertia = 0.6  # how far braking pitches it forward (braking is harsher)
+lean_stiffness = 320    # how fast the body springs to its lean
+lean_damping   = 14     # lower = more wobble
+
+# --- Jumping and falling ----------------------------------------------------------------------
+gravity                   = 2200
+fall_gravity_mult         = 1.5    # heavier on the way down
+jump_speed                = 820    # about 3.8 tiles high
+jump_release_gravity_mult = 2.6    # releasing jump early cuts the hop short
+max_fall_speed            = 1500
+coyote_time               = 0.08   # can still jump just after running off an edge
+jump_buffer               = 0.12   # a press slightly before landing still counts
+drop_through_time         = 0.22   # Down + jump on a thin platform
+double_jump               = 1      # 1 = a second jump in mid-air, 0 = off
+double_jump_speed         = 720    # kick of the second jump (first is jump_speed)
+double_jump_spin_time     = 0.35   # duration of the flip it does, 0 = no flip
+drop_through              = 0      # 1 = Down + jump drops through a thin platform
+
+# --- Crashing into an obstacle from below -------------------------------------------------
+# Jumping into the underside of anything knocks Leon out: he drops, keeps his sideways speed,
+# bounces as a square, rolls to a stop, lies there, then gets up. No control meanwhile.
+crash_min_speed        = 0      # upward speed needed to be knocked out; 0 = any bump
+knock_bounces          = 3      # at most this many bounces...
+knock_bounce           = 0.45   # ...each keeping this fraction of the fall speed
+knock_bounce_min_speed = 140    # a bounce weaker than this ends the bouncing
+knock_bounce_friction  = 0.7    # sideways speed kept at each bounce
+knock_roll_friction    = 3.0    # how fast the final roll dies out (per second)
+knock_down_time        = 0      # seconds lying down before getting up (0 = at once)
+knock_rise_time        = 1.0    # the whole get-up: scrambling to his feet, then balancing
+knock_control_after    = 0.2    # ...but he can move again after this much of it
+
+# --- Landing -------------------------------------------------------------------------------
+hard_landing_speed        = 950    # impact speed above which the landing is violent
+shake_pixels              = 22
+shake_degrees             = 1.6
+shake_decay               = 1.8
+squash_max                = 0.45
+hard_landing_stun         = 0.22   # seconds of reduced control after a violent landing
+hard_landing_stun_control = 0.25
+knock_fall_height         = 2.0    # a fall longer than this many screen heights knocks him out on landing
+
+# --- Gravity platforms ----------------------------------------------------------------------
+# Touching one turns gravity towards its arrows; the screen turns with it (up = 180 degrees).
+# The turn's speed is a bell curve: builds up, peaks halfway, slows into the target.
+gravity_turn_time  = 0.5    # seconds for the screen -- and the pull -- to swing round
+gravity_turn_sigma = 0.15   # width of the bell, as a fraction of the turn (smaller = sharper)
+player_turn_delay  = 0.1    # Leon turns with the world, this much later
+# Their outer corners are rounded: the radius as a fraction of the platform's width (left to right,
+# as in the level file), at most half its smaller side.
+gravity_platform_round = 0.05
+
+# --- Tongue (B on the pad, X on the keyboard) --------------------------------------------------
+# Thrown where Leon looks; sticks to the first thing it meets, then acts as a rope of that
+# length: slack it just hangs, taut it holds him (Tarzan). It bends round corners.
+tongue_length          = 0.625  # MAXIMUM LENGTH: its reach, as a fraction of the screen height
+tongue_send_time       = 0.1    # seconds to throw it to full reach
+tongue_back_time       = 0.2    # seconds to swallow it from full reach
+tongue_quick_back_time = 0.05   # B again while it flies: snapped back this fast, then re-thrown
+tongue_swing_pump      = 700    # how hard Left/Right push the swing along its arc
+tongue_swing_damping   = 0.12   # swing losses (per second)
+tongue_swing_max_speed = 900    # pumping stops adding speed beyond this
+tongue_sag             = 1.0    # how heavily a slack tongue hangs
+tongue_stretch_speed   = 30     # stuck, it slowly pays out to full reach (pixels per second)...
+tongue_fast_stretch    = 4      # ...this many times faster while LT (keyboard V) is held
+tongue_give            = 16     # fully paid out, walking away: it gives this much (pixels)...
+tongue_give_spring     = 250    # ...pulling back harder the more it gives
+tongue_chew_interval   = 0.18   # (no longer used: chewing is now one per RT pull)
+tongue_chew_time       = 0.08   # RT (keyboard C): each pull chews back a body height, this fast
+tongue_spit_effect     = True   # saliva: drops from the mouth on throw and swallow; stuck, single drips
+tongue_drip_interval   = 3.0    # ...one drop about this often, from the tongue's lowest point
+tongue_aim_grace       = 0.06   # B with no direction held waits this long for one, then throws ahead
+
+# --- Flies ---------------------------------------------------------------------------------
+# They buzz left or right (across gravity), jitter about, and turn round when they bump into
+# something. The tongue snaps them up; an eaten fly comes back somewhere out of sight.
+fly_count  = 8
+fly_speed  = 70     # pixels per second, along their left/right
+fly_jitter = 900    # strength of the random buzz
+# Now an eaten fly is chewed, then coughed back out -- golden: it circles Leon for ever, following
+# him with a little delay (and goes through walls to keep up).
+golden_fly_delay     = 0.3    # seconds it lags behind him
+golden_fly_max_speed = 0.5    # never faster than this fraction of his top falling speed (max_fall_speed)
+
+# --- The hat ('H' in the level) -----------------------------------------------------------
+# Worn once taken: a bump on the head no longer knocks Leon out -- the hat folds up like an
+# accordion instead, stays folded, then unfolds; until it is whole again, it protects no more.
+hat_squash_time     = 0.1    # seconds to fold up...
+hat_squashed_time   = 0.3    # ...how long it stays folded...
+hat_unfold_time     = 0.6    # ...and to unfold again
+hat_squashed_height = 0.3    # folded, the crown keeps this fraction of its height
+# (It opens again like an accordion pulled one side at a time -- left, right, three times -- and
+# protects as soon as it is whole: 0.1 + 0.3 + 0.6 = 1 second without.)
+# Folding (a bump, or his head hitting the ground while knocked out), the brim's curled ends go
+# flat, then spring back -- past their shape and back, like a spring:
+hat_brim_spring_freq = 2.8    # swings a second
+hat_brim_spring_time = 0.14   # seconds for the swing to die down (by e)
+
+# --- Special platforms and blocks (level.txt: '~' slippery, 'X' dark matter, 'B' block) -------
+# Slippery: the tongue slides off it, and Leon slides on it, keeping the speed he came with.
+slippy_grip    = 0.06   # share of the normal grip when he pushes...
+slippy_drag    = 0.03   # ...and when he does not (lower = slides further)
+slippy_bubbles = 1.0    # how many soap bubbles at his feet (they follow his speed)
+slippy_wobble      = 6     # on ice he is never quite steady: a slow sway of this many degrees...
+slippy_wobble_rate = 0.7   # ...this many times a second
+# Blocks: pulled with the tongue (walk away from them) or pushed (walk into them); they fall
+# with gravity and slide on ice.
+block_size            = 2     # side, in Leon heights
+block_friction        = 10    # how fast a block stops sliding on normal ground
+block_slippy_friction = 0.3   # ...and on ice
+block_pull_speed      = 0.5   # Leon's speed while dragging one
+block_push_speed      = 0.25  # ...and while pushing one by walking into it
+block_knock_shove     = 6     # knocked out and colliding, Leon shoves a touching block this far (pixels)
+block_roll_min_speed  = 220   # off an edge (or off Leon) it tips and rolls flat: never slower than this (deg/s)
+block_pull_lean       = 12    # degrees he leans into the drag
+# Dark matter: touching it, Leon bursts into 16 little cubes. The world fades to black around
+# them while they bounce on, then they fade too; he comes back at his last checkpoint (the
+# start, or the last pineapple 'A' eaten), still, with the gravity he had there.
+death_wait = 1.5    # (no longer used)
+death_fade = 0.6    # (no longer used)
+death_world_fade  = 1.0    # seconds for everything but the pieces to fade to black
+death_pieces_wait = 1.0    # seconds after the burst before the pieces start fading...
+death_pieces_fade = 1.0    # ...and how long they take
+death_fade_in     = 0.5    # coming back: a quick fade in
+death_pieces_spread = 3.0  # how far the 16 pieces fly, as a multiple of the original burst
+death_pieces_speed  = 0.5  # ...and how fast: 0.5 = slow motion at half speed
+checkpoint_message_time = 1.6   # 'CHECKPOINT' stays on screen this long
+# An eaten ability fruit's message ('Double-jump !', 'Tongue !') shows while Leon is within this
+# many tiles of it: fully within the first two thirds, fading out over the last third.
+fruit_text_distance = 4.5
+# Now these messages ('Double-jump !', 'Tongue !', and 'Hat !') are timed instead -- the distance
+# above is no longer used: they fade in, stay, then fade out.
+lesson_fade_in   = 0.25   # seconds to appear...
+lesson_show_time = 4.0    # ...how long they stay...
+lesson_fade_out  = 0.5    # ...and to fade out
+# Through the exit door, 'LEVEL COMPLETED' shows while Leon is within this many tiles of the door
+# (and in hard mode, 'HARD MODE COMPLETED' near the start), fading out over the last third.
+goal_text_distance = 6
+# Now, with a green flag in the level: by the red flag (the exit) 'LEVEL HALF-COMPLETED !', and by the
+# green flag, once up, 'LEVEL COMPLETED !' -- the green flag sits further than this from the start.
+
+# --- Camera --------------------------------------------------------------------------------
+# Leon is kept inside a central zone of this fraction of the screen's AREA (spec: 1/2).
+# Inside it the camera recentres on him with these delays (time constants, seconds).
+camera_zone_area = 0.5
+camera_delay_x   = 0.45
+camera_delay_y   = 0.55
+# Zoom: Leon's drawn height as a fraction of the screen height (0.08 = 8%).
+player_screen_height = 0.08
+view_zoom        = 1.0   # extra multiplier on top of that
+# Up / Down: look. Looking down, the camera settles with Leon this far from the top of the
+# screen (1/3); looking up, the same distance from the bottom.
+# The right stick also looks left/right: Leon then sits this far from the side he looks away from.
+look_screen_position = 0.3333
+# Now the right stick looks much further, as far as it is pushed (up/down or left/right): all the
+# way, Leon ends up this far from the screen's edge -- in his own width (aside) or height (up/down).
+look_far_margin = 0.5
+
+# --- After the exit: hard mode ------------------------------------------------------------
+# Once through the exit, the level goes on in hard mode: the way back to the start. Only two
+# checkpoints are left: the one nearest the exit (lit: he comes back there) and the one nearest
+# the tongue fruit (grey again: to be eaten again). The clock shows the way back's own time.
+hard_mode_home_distance = 1.5   # back within this many tiles of the starting point: hard mode is won
+# Now the way back ends on the green flag ('G', left of the start): it goes up when Leon touches it
+# (once the red flag is up). The distance above only counts in a level without a green flag.
+
+# --- Guide arrow ---------------------------------------------------------------------------
+# When no control has been touched for a while, an arrow at the edge of the screen points the
+# way: to the next checkpoint not reached yet (the nearest to the last one reached), then to the
+# exit; in hard mode, back past where the checkpoints were, the last one first, to the start.
+# Now: the next checkpoint along the level's own way, lit or not (the game works the order out),
+# then the exit; in hard mode the same checkpoints in reverse, even those taken away, then the start.
+# (With a green flag in the level: then the green flag.)
+guide_arrow_wait     = 3.0    # seconds without touching any control
+guide_arrow_fade_in  = 1.0    # seconds to appear...
+guide_arrow_fade_out = 0.25   # ...and to go once he moves
+guide_arrow_size     = 1.0    # its length, in Leon heights
+guide_arrow_pulse    = 0.1    # it grows and shrinks by this fraction (0.1: x0.9 to x1.1)...
+guide_arrow_period   = 2.0    # ...over this many seconds
+guide_pass_distance  = 2      # hard mode: within this many tiles of an old checkpoint, it points on
+
+# --- Gamepad -------------------------------------------------------------------------------
+gamepad_deadzone = 0.2
+
+# --- Sound ---------------------------------------------------------------------------------
+# Music: "03 - tno - Tartopom.mod" from assets/, looping. The effects are made by the game itself.
+music        = True
+music_volume = 0.45
+sound        = True     # steps, jumps, the tongue (out, stuck, let go, swallowed), fruit, crash, hard landing, death
+sound_volume = 0.6
+
+
+------
+
+POST-DEMIO
+
+ajouter une fleche 
+permettre tous les pouvoirs dés le début et un message pour dire comment les utiliser
+ajouter glace
+ajouter couloir suspendu
+menu (esc ou "menu"): continuer, recommencer et afficher la manette
+[end params.txt]
+--- addressed 2026-10-28: removed the 2x2 square the tongue was stuck to (columns 135-136, rows 14-15).
