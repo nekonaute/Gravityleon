@@ -853,6 +853,7 @@ static int gravityFrame(char c) {
 }
 static bool iceGravity(char c) { return c == 'u' || c == '(' || c == 'n' || c == ')'; }
 static bool tongueBounces(char c) { return c == '~' || iceGravity(c); }   // (ice, and ice gravity)
+static constexpr char kHatDropIce = ']';      // rightward ice at the first bend of the Solo pit
 struct Level {
     int w = 0, h = 0;
     int generation = 0;                       // one more each load: what is worked out from the map (the background's cover) is stale
@@ -928,7 +929,8 @@ struct Level {
     char at(int x, int y) const {
         if (endWall(x, y)) return '~';            // (the ending's wall: ice, unseen)
         if (y < 0 || y >= h || x < 0 || x >= (int)rows[y].size()) return ' ';
-        return rows[y][x];
+        char c = rows[y][x];
+        return c == kHatDropIce ? ')' : c;
     }
     bool solid(int x, int y) const { return at(x, y) == '#'; }
     bool oneway(int x, int y) const { return at(x, y) == '='; }
@@ -1734,7 +1736,7 @@ struct Game {
     bool fromSuicide = false;                 // this death his own doing: back at the start of the mode he was in...
     bool wantCountdown = false;               // ...then 3, 2, 1, GO (main)
     bool timeUp = false, timeUpOver = false;  // a clock's hour run out: he explodes, then the title (main)
-    // The hat, knocked off his head by a Monstermunch's tongue: falling with his gravity, bouncing,
+    // The hat, knocked off by a Monstermunch or the first bend of the Solo pit: falling with his gravity, bouncing,
     // rolling, then lying where it ends up, upright -- his again when he touches it, or when his
     // tongue catches it: on its tip, brought back, then curled up over his head to put it on.
     bool hatLoose = false;
@@ -3039,7 +3041,8 @@ struct Game {
     // The gravity platform Leon is touching (his box grown by a pixel -- and the hat on his head
     // touches for him), as the frame it asks for -- or -1. Unless `any`, one already matching the
     // current gravity is skipped.
-    int gravityContact(bool any = false) const {
+    struct GravityContact { int frame; bool knocksHatOff; };
+    GravityContact gravityContact(bool any = false) const {
         float up = 1;
         if (hasHat) { float hl, hr; hatSides(hl, hr); up += kHatSeat + kHatCrown * fmaxf(hl, hr); }
         Rectangle w = turnBox(grav, pos.x - kLeonW / 2 - 1, pos.y - kLeonH - up, pos.x + kLeonW / 2 + 1, pos.y + 1);
@@ -3048,9 +3051,9 @@ struct Game {
         for (int ty = ty0; ty <= ty1; ty++)
             for (int tx = tx0; tx <= tx1; tx++) {
                 int f = gravityFrame(level.at(tx, ty));
-                if (f >= 0 && (any || f != grav)) return f;
+                if (f >= 0 && (any || f != grav)) return {f, level.rows[ty][tx] == kHatDropIce};
             }
-        return -1;
+        return {-1, false};
     }
 
     // Screen angle of the world at game time tt (degrees, clockwise): follows the bell curve.
@@ -4315,6 +4318,16 @@ struct Game {
         if (trace) fprintf(stderr, "t=%.2f hat taken back\n", time);
     }
 
+    void knockHatOff(Vector2 carrierVelocity) {
+        if (!hasHat) return;
+        if (bellyFly >= 0) { hatKeep = bellyColour(); hatKeepT = t.bellyTime > 0 ? bellyT : -1; }
+        hasHat = false; hatLoose = true;
+        hatP = Vector2Add(centreW(), toWorld({0, -kLeonH / 2 - 10}));
+        hatV = Vector2Add(toWorld({(float)GetRandomValue(-120, 120), -(float)GetRandomValue(250, 380)}), Vector2Scale(toWorld(carrierVelocity), 0.5f));
+        hatW = (float)GetRandomValue(-500, 500);
+        hatA = grav * 90.0f;
+    }
+
     // The tongue bounced off ice and then held nothing -- at the end of its reach, or a fly
     // snapped up: it goes dead, limp, hanging out of his mouth (deadStep). It is never swallowed
     // by itself: RT (C) swallows it back a chew at a time, the tongue key reels it all in.
@@ -5060,15 +5073,8 @@ struct Game {
             eatRope = eatRopePrev = evenPoints(path, 24, eatRopeLen);
             if (trace) fprintf(stderr, "t=%.2f his tongue, %s, goes down with him (%.0f px)\n", time, eatHolds > 0 ? "stuck" : "numb", eatRopeLen);
         }
-        if (hasHat && bellyFly >= 0) { hatKeep = bellyColour(); hatKeepT = t.bellyTime > 0 ? bellyT : -1; }   // (the fly's colour, on the hat a while)
+        knockHatOff(vel);                                     // keep the fly's colour before the catch releases it
         deathCleanup(true);
-        if (hasHat) {                                         // the hat knocked off his head, flying
-            hasHat = false; hatLoose = true;
-            hatP = Vector2Add(centreW(), toWorld({0, -kLeonH / 2 - 10}));
-            hatV = Vector2Add(toWorld({(float)GetRandomValue(-120, 120), -(float)GetRandomValue(250, 380)}), Vector2Scale(toWorld(vel), 0.5f));
-            hatW = (float)GetRandomValue(-500, 500);
-            hatA = grav * 90.0f;
-        }
         suicideT = 0; pupil = pupilV = {0, 0};
         vel = {0, 0}; spin = 0; squash = squashVel = 0;
         sound(Audio::kStick, 0.7f);
@@ -5638,12 +5644,12 @@ struct Game {
             sparks(hatP, false);
             hatBack();
         }
-        int gravHit = gravityContact();
+        GravityContact gravHit = gravityContact();
         bool turning = turnStart >= 0 && time - turnStart < t.turnTime;
         // Bumping into something from below knocks him out, and so does landing from higher than
         // knock_fall_height screens. A gravity platform never does -- it turns the world instead --
         // and nothing does while the world is turning, or while his tongue is stuck.
-        bool spared = turning || gravityContact(true) >= 0 || tg == tgStuck;   // or hanging by the tongue
+        bool spared = turning || gravityContact(true).frame >= 0 || tg == tgStuck;   // or hanging by the tongue
         // The hat meets a ceiling before his head does: crushed (drawn no taller than the room
         // left), it takes the bump as soon as it is flat to its folded height -- his head never
         // gets any closer. (Too fast for that, the head's own bump still is the hat's.)
@@ -5670,7 +5676,11 @@ struct Game {
             else if (knock == kAir) knockLand(impact);
             else vel.y = 0;
         }
-        if (gravHit >= 0 && !turning) setGravity(gravHit);
+        if (gravHit.frame >= 0 && !turning) {
+            if (gravHit.knocksHatOff && grav == 0 && impact > 0)
+                knockHatOff({vel.x, -impact});               // rebound up the shaft with the speed of the fall
+            setGravity(gravHit.frame);
+        }
         if (turnStart >= 0 && time - turnStart >= t.turnTime + t.playerTurnDelay) {
             turnFrom += turnDelta; turnStart = -1;      // the turn (and Leon's lag behind it) is over
         }

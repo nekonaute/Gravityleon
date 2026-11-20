@@ -197,7 +197,8 @@ the pit, the black flag (`b`) -- black no more: a rainbow flag, six upright bars
 rainbow, rolling along it once up (`title_scores_rainbow_speed`) --, furled: the golden run's end -- touched, the golden run's highscores show by it, under
 its name, no name typed (not a checkpoint -- till a golden run ends by it). At the far end of the right room's
 floor, 3 tiles short of its wall, a pit 28 tiles deep: the snail -- a square spiral, 21 x 21, of corridors a tile wide, walled with ice gravity
-platforms each pointing the way its corridor runs (a corner's end wall: the next corridor's way). Leon falls round and
+platforms each pointing the way its corridor runs (a corner's end wall: the next corridor's way).
+The first right turn at the foot of the shaft knocks off Leon's or Anna's hat. It bounces loose and can be picked up again, as after a Monstermunch catches them. Leon falls round and
 round without a stop, the world turning at each corner, into its heart, 7 x 9: a snail too, its corridors winding in (right, up, left,
 down, right, up as the screen shows it, gravity up), walled with ice gravity the same way -- no rock in the snail --, its last one
 ending on a dark light, the three tiles over it pointing on (nothing turns him there): landing in
@@ -398,6 +399,7 @@ new frame, neither tucks them nor swings them yet: landing on a gravity tile, hi
 - `levels/*.txt`: the maps (`testing ground`, `level 01`); `level` in `params.txt` picks one. `#` solid, `=` thin platform (solid from every side), `P` start, `*` star,
   `>` `<` `^` `v` gravity platforms (one arrow direction each), `)` `(` `n` `u` ice gravity platforms (right, left, up, down: the
   round side shows the way -- gravity platforms the colours inverted, white with dark arrows, square-cornered as walls and without an outline of their own (the rock keeps its line along them), that no tongue sticks to: it bounces off them as off ice; Leon does not slide on them),
+  `]` rightward ice gravity that knocks off a falling player's hat at the Solo pit's first bend,
   `@` a dark light (a light the other way round: darkness round it, blackest at its heart, `dark_light_radius`, `dark_light_depth`, wavering as a lamp's light; in it, only Leon's eyes show;
   his middle reaching its heart, he fades out, `dark_light_fade`, and is gone -- the world goes on without him, till a restart), `~` slippery (the tongue bounces off
   it, as a ball would; sticking farther on, it holds slack -- all it ran out -- till swallowed taut;
