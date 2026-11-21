@@ -26,7 +26,7 @@ Run with :
 
 Niko/Factory, with additional help from Myr and Ris.
 
-*See end credits for game testers*
+*See end credits for game testers.*
 
 ### Music
 
