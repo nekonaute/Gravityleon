@@ -156,6 +156,7 @@ tongue_swing_damping   = 0.12   # swing losses (per second)
 tongue_swing_max_speed = 900    # pumping stops adding speed beyond this
 tongue_sag             = 1.0    # how heavily a slack tongue hangs
 tongue_stretch_speed   = 30     # stuck, it slowly pays out to full reach (pixels per second)...
+# Current keyboard bindings for the tongue settings below: hold C to pay out (LT), tap V to chew (RT).
 tongue_fast_stretch    = 4      # ...this many times faster while LT (keyboard V) is held
 tongue_give            = 16     # fully paid out, walking away: it gives this much (pixels)...
 tongue_give_spring     = 250    # ...pulling back harder the more it gives
@@ -447,6 +448,7 @@ anna_hat_pop_time        = 0.1   # ...each in this many
 anna_mouth_body_scale    = 0.9   # her mouth open (the tongue out): her round body this much of its size
 anna_mouth_height        = 0.4   # ...her mouth's line this far up her body, from its bottom (0.5: its middle -- lower, the chin smaller)
 anna_dash_distance       = 4     # her dash (LB or RB -- Alt): this many tiles, the way she faces...
+# Current keyboard binding for Anna's dash: tap either Shift key.
 anna_dash_time           = 0.10 # 0.16  # ...in this many seconds, gravity held off, nothing able to hurt her meanwhile (a wall stops it: she blinks)
 anna_dash_cooldown       = 0.10 # 0.25  # ...and again only this many seconds after one ends
 anna_dash_air            = 1     # dashes in the air before she stands again (0: on the ground only)

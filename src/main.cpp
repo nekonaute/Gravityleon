@@ -827,7 +827,7 @@ struct Tune {
 // light fading as Leon goes down it, 'I' a lamp post: a pole two tiles tall on the ground under
 // this tile (or hanging from the ceiling over it), a golden fly circling its top that lights the
 // dark, 'i' a lamp post with no fly yet, 'U' a banana (eaten, it says to swallow the fly), 'Z' a
-// kaki (eaten, it says to look down -- the right stick, or Shift+Down), 'K' a
+// kaki (eaten, it says to look down -- the right stick, or Alt+Down), 'K' a
 // blue key, 'l' a blue door (only the blue key opens it, as only the red one opens 'L'), 'J' the
 // blue flag: the end of dark mode (its clock stops, the music changes) and the start of harder
 // mode, 'V' the violet flag: the end of harder mode and the start of cameleon mode, 'k' a green
@@ -1559,8 +1559,8 @@ struct Game {
     float mouth = 0;                          // 0 shut .. 1 wide open
     float whip = 0;                           // seconds into the swallow, for the whip wave
     bool tonguePress = false;
-    bool chewPress = false;                   // RT (keyboard C) pulled: one chew, waiting for the step
-    bool payHeld = false;                     // LT (keyboard V) held: pay the tongue out fast
+    bool chewPress = false;                   // RT (keyboard V) pulled: one chew, waiting for the step
+    bool payHeld = false;                     // LT (keyboard C) held: pay the tongue out fast
     float chewLeft = 0;                       // tongue still to chew back
     float eyeBig = 0;                         // eyes popping while he chews the tongue back
     bool paying = false;                      // paying out fast right now
@@ -1837,7 +1837,7 @@ struct Game {
     float hatBlinkT = -1;                     // seconds since the hat took a bump, while the eyes blink (-1 done)
     float hatRoom = 1e9f;                     // the room above his head (a ceiling crushes the hat)
     float hatFrom = 1;                        // how tall the crown was as it took the bump
-    // Anna's dash (LB or RB, Alt): the way she faces, along the ground's line -- wound up first
+    // Anna's dash (LB or RB, either Shift): the way she faces, along the ground's line -- wound up first
     // (anna_dash_windup: still, knees bent, leaning over), then anna_dash_distance tiles in
     // anna_dash_time, gravity held off, nothing able to hurt her meanwhile; a wall stops it -- she
     // blinks, no more; then braking (anna_dash_recover).
@@ -1848,7 +1848,8 @@ struct Game {
     float dashOutT = -1;                      // seconds since it ended, while the blur goes and she brakes (-1: none)
     float dashWait = 0;                       // seconds before the next one (anna_dash_cooldown)
     int dashAirUsed = 0;                      // dashes since she last stood
-    bool dashPress = false;                   // main: LB, RB or Alt pressed this frame
+    bool dashPress = false;                   // a bumper press or a Shift tap, waiting for the step
+    bool shiftDashPending = false;            // Shift pressed in this life, waiting for release
     float hatSideL = 1e9f, hatSideR = 1e9f;   // her brim's room aside, to a wall (her frame, from her middle)
     float hatLeanDir = -1;                    // which way her cone bends under a ceiling: back from where she goes (-1 left, 1 right; swinging over)
     // Anna's grape: the dash's lesson, 4 tiles left of where she starts (her game only; she dashes from the start).
@@ -1860,7 +1861,7 @@ struct Game {
     const char* lessonText = nullptr;         // an ability's message ('Double-jump !', 'Hat !')...
     const char* lessonWord = nullptr;         // ...a word of it in colour ('Red key !')...
     Color lessonCol = kInk;
-    // ...under it, smaller, how -- in colours, marked in the text: {i} ink, {r} red, {v} violet, {b} blue,
+    // ...under it, smaller, how -- in colours, marked in the text: {i} ink, {r} red, {o} orange, {n} brown, {v} violet, {b} blue,
     // and {A} / {B} a pad's button in its circle (A green, B red)...
     const char* lessonSub = nullptr;
     float lessonT = -1;                       // ...and how long it has been up (-1: none)
@@ -2308,7 +2309,8 @@ struct Game {
         lampOffTill.clear(); lampNextOff.clear();
         mouthFly = -1; fallTop = pos.y; farReach = {0, 0};
         hatTaken = hasHat = t.startHat; hatT = hatBlinkT = -1; hatRoom = 1e9f;   // (start_with_hat: the one from its spot)
-        dashPrepT = dashT = dashOutT = dashBonkT = -1; dashGone = dashWait = 0; dashAirUsed = 0; dashPress = false; hatSideL = hatSideR = 1e9f; hatLeanDir = -1;
+        resetDash();
+        hatSideL = hatSideR = 1e9f; hatLeanDir = -1;
         caughtPine = -1; cpFeet = level.spawn; cpGrav = 0; cpMsg = 0;
         monsters.clear();
         for (size_t i = 0; i < level.monsters.size(); i++) {
@@ -2664,7 +2666,8 @@ struct Game {
             m.calm();
         }
         fadeIn = t.deathFadeIn;
-        // Nothing pressed while dead carries over: the tongue stays in, no jump.
+        // Input and movement from the previous life end at the checkpoint.
+        resetDash();
         tonguePress = false; tgResend = false; chewPress = false; jumpBuf = 0; paying = false;
         unwedgeCrates();
         faceNextCheckpoint();
@@ -3902,8 +3905,8 @@ struct Game {
             resetRope();
             if (trace) fprintf(stderr, "t=%.2f tongue unbends\n", time);
         }
-        // RT (keyboard C): each pull swallows one chew -- a body height of tongue -- eyes
-        // popping. LT (keyboard V) held: it pays out fast. Otherwise it slowly stretches out
+        // RT (keyboard V): each pull swallows one chew -- a body height of tongue -- eyes
+        // popping. LT (keyboard C) held: it pays out fast. Otherwise it slowly stretches out
         // to its full reach.
         bool stretching = false;
         {
@@ -4330,7 +4333,7 @@ struct Game {
 
     // The tongue bounced off ice and then held nothing -- at the end of its reach, or a fly
     // snapped up: it goes dead, limp, hanging out of his mouth (deadStep). It is never swallowed
-    // by itself: RT (C) swallows it back a chew at a time, the tongue key reels it all in.
+    // by itself: RT (V) swallows it back a chew at a time, the tongue key reels it all in.
     void goDead() {
         float len;
         rope = evenPoints(tonguePath(centreW()), 24, len);   // (the path, cut into 24 points evenly)
@@ -5413,7 +5416,7 @@ struct Game {
                     lesson("Swallow the fly !");
                 } else if (kind == 'Z') {                // the kaki: the same -- looking down
                     abilityText = "KAKI";
-                    lessonHow("Look down !", "{v}right stick{i} or keyboard {b}<Shift>+<Down>");
+                    lessonHow("Look down !", "{v}Right Stick{i} or keyboard {b}<Alt>+<Down>");
                 } else {
                     if (dj) canDouble = true; else canTongue = true;
                     abilityText = dj ? "DOUBLE JUMP" : "TONGUE";
@@ -5438,7 +5441,7 @@ struct Game {
         for (size_t i = 0; i < level.cherries.size(); i++)
             if (!cherryEaten[i] && Vector2Distance(centreW(), level.cherries[i]) < 28.0f) {
                 cherryEaten[i] = true;
-                lessonHow("Extend or Swallow Tongue !", "{i}Joypad {r}left and right {i}triggers - keyboard {b}<C> and <V>");
+                lessonHow("Extend or Swallow Tongue !", "{i}Joypad {n}LT{i} or {n}RT{i} - keyboard {b}<C> and <V>");
                 flyChew = 0; chews = 0;
                 sparks(level.cherries[i], false);
                 sound(Audio::kFruit, 1.15f);
@@ -5447,7 +5450,7 @@ struct Game {
         if (grapeAvailable() && Vector2Distance(centreW(), grapeAt()) < 28.0f) {   // her grape: the dash's lesson
             grapeEaten = true;
             abilityText = "GRAPE";
-            lessonHow("Dash !", "{i}Joypad {r}RB{i} or {r}LB{i} - Keyboard {b}<Alt>");
+            lessonHow("Dash !", "{i}Joypad {o}RB{i} or {o}LB{i} - Keyboard {b}<Shift>");
             flyChew = 0; chews = 0;
             sparks(grapeAt(), false);
             sound(Audio::kFruit, 1.05f);
@@ -5715,12 +5718,18 @@ struct Game {
         }
     }
 
-    // Anna's dash: LB or RB, Alt (main: dashPress), the way she faces -- standing, or in the air
+    // Anna's dash: LB or RB, either Shift (main: dashPress), the way she faces -- standing, or in the air
     // (anna_dash_air of them before she stands again); not knocked out, her hat not on her tongue, the
     // ending not begun, the last one anna_dash_cooldown ago. Wound up first, still, where she is -- her
     // tongue, out, swallowed meanwhile --; then off, a little cloud left where she was.
     float dashSpeed() const { return t.dashDist * kTile / t.dashTime; }
     bool dashing() const { return dashT >= 0 || dashPrepT >= 0; }
+    void resetDash() {
+        dashPress = shiftDashPending = false;
+        dashPrepT = dashT = dashOutT = dashBonkT = -1;
+        dashGone = dashWait = 0;
+        dashAirUsed = 0;
+    }
     void dashStep(float dt) {
         bool press = dashPress;
         dashPress = false;
@@ -10074,7 +10083,7 @@ static void drawName(Font f, const char* name, Vector2 at, float size, float bol
     }
 }
 
-// A line of how-to -- a lesson's, the end's --, its colours marked in the text: {i} ink, {r} red,
+// A line of how-to -- a lesson's, the end's --, its colours marked in the text: {i} ink, {r} red, {o} orange, {n} brown,
 // {v} violet, {b} blue, and {A} / {B} a pad's button in its circle, A green, B red (room on each side
 // for it). Drawn from x (its left) at y, `size` high, faded by a -- or, draw false, only measured.
 // Its width.
@@ -10104,7 +10113,14 @@ static float howLine(const char* text, float x, float y, int size, float a, Colo
             }
             x += w + sp + ring;
         } else {
-            col = m == 'r' ? kFlagRed : m == 'v' ? kFlagViolet : m == 'b' ? kKeyBlue : ink;
+            switch (m) {
+                case 'r': col = kFlagRed; break;
+                case 'o': col = ORANGE; break;
+                case 'n': col = BROWN; break;
+                case 'v': col = kFlagViolet; break;
+                case 'b': col = kKeyBlue; break;
+                default:  col = ink; break;
+            }
         }
         s += 2;
     }
@@ -10361,8 +10377,8 @@ static void drawHud(const Game& g, const Scores& sc, const NameEntry& en, bool c
         float a = clampf(g.hintTimer, 0, 1);
         const char* lines[kHintLines] = {
             TextFormat("Run: Left/Right or stick      Jump: Space, %s or (A) -- again in mid-air", kJumpKeyName),
-            "Look: Up/Down      Look far: Shift+arrows or right stick",
-            "Tongue: X or (B)      Swallow it back: C or (RT)      Pay it out: V or (LT), held",
+            "Look: Up/Down      Look far: Alt+arrows or Right Stick",
+            "Tongue: X or (B)      Swallow it back: V or (RT)      Pay it out: C or (LT), held",
             "Shift+T: screenshot    Shift+R: restart    Shift+F: fullscreen    Shift+S: look    Shift+B: bug report"};
         int hs = (int)(16 * ui);
         float y = hintTop();
@@ -10771,7 +10787,7 @@ static void drawTitle(float clock, const Tune& tn, const Scores& sc, const Title
     }
     const float buildSize = visibleRowSize * 0.5f, margin = 4 * ui;
     DrawTextEx(f, "Build " GRAVITY_LEON_BUILD_TIME, {roundf(margin), roundf(footerBottom - margin - buildSize)},
-               buildSize, buildSize / 10, fade(kInk, a));
+               buildSize, buildSize / 10, fade({128, 128, 128, 255}, a));
 
     // "Press A or <spacebar>": small, blinking softly, each letter riding its own point of a wave that
     // runs left to right -- a discrete wave, letter by letter; the pad's A in green, in a green circle (a
@@ -11155,6 +11171,7 @@ int main(int argc, char** argv) {
     const Texture2D whiteTex = {rlGetTextureIdDefault(), 1, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
     float tongueWait = 0;                    // B pressed, waiting a moment for a direction
     bool rtWas = false;                      // RT last frame: a chew per pull, not per frame
+    bool shiftWasDown = false;
     float restartIn = -1;                    // Shift+Ctrl+R: the restart at once, then 3, 2, 1 (the game held), GO -- seconds left of the 4 (-1: none)
     bool goldenSeen[2] = {};                 // a golden run completed since the game was launched (Leon's, Anna's): its table on the title from then on
     float switchT = -1;                      // the title's debug switch between Leon's game and Anna's: seconds into its fade (-1: none)
@@ -11404,12 +11421,24 @@ int main(int argc, char** argv) {
         }
 
         // ---- input, once per frame ----
-        // Shift + the arrows is the right stick (looking far): the arrows then neither run nor look.
         // (A highscore's name being typed: the letter keys are its, not the game's.)
-        bool shiftArrows = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-        bool arrows = !shiftArrows;
         auto letterDown = [&](int k) { return !typing && IsKeyDown(k); };
         auto letterPressed = [&](int k) { return !typing && IsKeyPressed(k); };
+        const bool shiftDown = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+        const bool dashInputEnabled = g.anna && !g.dead && g.eatenBy < 0 && g.lostT < 0 && g.goldenSeq < 0 && g.endT < 0;
+        if (shiftDown && !shiftWasDown) g.shiftDashPending = true;
+        shiftWasDown = shiftDown;
+        // Wait for release so using a Shift shortcut does not also start a dash.
+        if (!dashInputEnabled || boxOpen || typing || titleWait || startFade >= 0 || restartIn > 1 ||
+            escHit || !IsWindowFocused()) g.shiftDashPending = false;
+        const bool keyboardDash = !shiftDown && g.shiftDashPending;
+        if (!shiftDown) g.shiftDashPending = false;
+        auto shiftShortcut = [&](int key) {
+            if (!shiftDown || !letterPressed(key)) return false;
+            g.shiftDashPending = false;
+            return true;
+        };
+        const bool arrows = !IsKeyDown(KEY_LEFT_ALT) && !IsKeyDown(KEY_RIGHT_ALT);
         bool kl = (arrows && IsKeyDown(KEY_LEFT)) || letterDown(KEY_A) || Input::padDown(GAMEPAD_BUTTON_LEFT_FACE_LEFT);
         bool kr = (arrows && IsKeyDown(KEY_RIGHT)) || letterDown(KEY_D) || Input::padDown(GAMEPAD_BUTTON_LEFT_FACE_RIGHT);
         // Up is LOOK, not jump: jumping is Space / W / Cmd (Ctrl off a Mac) / pad A.
@@ -11474,9 +11503,9 @@ int main(int argc, char** argv) {
                 if (smokeClock >= tg && smokeClock - frame < tg) g.toggleGod();
         }
         if (tonguePress) { g.tonguePress = true; g.tongueAim = Vector2Normalize(aim); }
-        {   // Stuck tongue: RT / C swallows one chew per pull, LT / V held pays it out fast.
-            bool rt = letterDown(KEY_C) || Input::rightTrigger();
-            bool lt = letterDown(KEY_V) || Input::leftTrigger();
+        {   // Stuck tongue: RT / V swallows one chew per pull, LT / C held pays it out fast.
+            bool rt = letterDown(KEY_V) || Input::rightTrigger();
+            bool lt = letterDown(KEY_C) || Input::leftTrigger();
             if (smokeName) {
                 rt = false; lt = false;
                 for (float ct : smokeChew) if (smokeClock >= ct && smokeClock < ct + 0.05f) rt = true;
@@ -11498,7 +11527,7 @@ int main(int argc, char** argv) {
         g.look = (g.downHeld ? 1.0f : 0.0f) - (upHeld ? 1.0f : 0.0f);
         float rx = smokeName ? (float)smokeLookSide : Input::rightX();
         float ry = smokeName ? 0.0f : Input::rightY();
-        if (shiftArrows && !smokeName) {                  // Shift + arrows: the right stick, pushed all the way
+        if (!arrows && !smokeName) {                      // Alt + arrows: the right stick, pushed all the way
             float ax = (IsKeyDown(KEY_RIGHT) ? 1.0f : 0.0f) - (IsKeyDown(KEY_LEFT) ? 1.0f : 0.0f);
             float ay = (IsKeyDown(KEY_DOWN) ? 1.0f : 0.0f) - (IsKeyDown(KEY_UP) ? 1.0f : 0.0f);
             if (ax != 0 || ay != 0) { rx = ax; ry = ay; }
@@ -11517,15 +11546,13 @@ int main(int argc, char** argv) {
             else startLatch = false;
         }
         if (jumpPress) g.jumpBuf = g.t.jumpBuffer;
-        // Anna's dash, the way she faces: LB or RB (the same), Alt on the keyboard.
-        bool dash = Input::padPressed(GAMEPAD_BUTTON_LEFT_TRIGGER_1) || Input::padPressed(GAMEPAD_BUTTON_RIGHT_TRIGGER_1) ||
-                    (!typing && (IsKeyPressed(KEY_LEFT_ALT) || IsKeyPressed(KEY_RIGHT_ALT)));
+        bool dash = Input::padPressed(GAMEPAD_BUTTON_LEFT_TRIGGER_1) || Input::padPressed(GAMEPAD_BUTTON_RIGHT_TRIGGER_1) || keyboardDash;
         if (smokeName) {
             dash = false;
             for (float d : smokeDash)
                 if (smokeClock >= d && smokeClock - frame < d) dash = true;
         }
-        if (g.anna && dash) g.dashPress = true;
+        if (dashInputEnabled && dash) g.dashPress = true;
 
         if (boxOpen) {                                                    // typing: the game hears nothing
             g.jumpBuf = 0; g.tonguePress = false; g.chewPress = false; g.cmd = 0; g.keyCmd = 0; tongueWait = 0;
@@ -11539,8 +11566,7 @@ int main(int argc, char** argv) {
             if (g.idle >= g.t.arrowWait && !g.dead && g.eatenBy < 0 && !g.gone()) g.arrowA = fminf(1, g.arrowA + frame / g.t.arrowFadeIn);
             else g.arrowA = fmaxf(0, g.arrowA - frame / g.t.arrowFadeOut);
         }
-        bool shiftDown = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-        if (!boxOpen && !reportWanted && !smokeName && shiftDown && letterPressed(KEY_B)) reportWanted = true;
+        if (!boxOpen && !reportWanted && !smokeName && shiftShortcut(KEY_B)) reportWanted = true;
         auto titleWho = [&] {                             // (back to the title: Leon's game till it is finished, then Anna's -- both: the choice, as last)
             if (forcePlayer < 0 && progress.stage() < 2) g.anna = progress.stage() == 1;
             g.endMsg = endWords();
@@ -11557,12 +11583,13 @@ int main(int argc, char** argv) {
             if (g.trace) fprintf(stderr, "t=%.2f restart\n", g.time);
         };
         bool ctrlDown = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
-        bool countdownKey = shiftDown && ctrlDown && letterPressed(KEY_R);
+        bool restartKey = shiftShortcut(KEY_R);
+        bool countdownKey = restartKey && ctrlDown;
         if (smokeName && smokeCountdown >= 0 && smokeClock >= smokeCountdown && smokeClock - frame < smokeCountdown) countdownKey = true;
         if (!boxOpen && countdownKey) {                   // Shift+Ctrl+R: the restart -- then 3, 2, 1, GO, Leon held till GO
             restartNow();
             restartIn = 4;
-        } else if (!boxOpen && shiftDown && letterPressed(KEY_R)) {   // Shift+R: restart
+        } else if (!boxOpen && restartKey) {   // Shift+R: restart
             restartNow();
         }
         if (restartIn > 0 && !boxOpen && (restartIn -= frame) <= 0) restartIn = -1;
@@ -11570,8 +11597,8 @@ int main(int argc, char** argv) {
         g.eyesHeld = countingIn;
         if (countingIn) g.fadeIn = fmaxf(0, g.fadeIn - frame);   // (back after a suicide: the fade in plays meanwhile)
         if (countingIn && g.goldenOutT >= 0) g.goldenOutT += frame;   // (the golden run's start: its light fades out meanwhile)
-        if (!boxOpen && letterPressed(KEY_G) && shiftDown && g.debugMode()) g.toggleGod();   // Shift+G, in debug mode: GOD on / off
-        if (!boxOpen && letterPressed(KEY_S) && shiftDown) g.engrave = !g.engrave;   // Shift+S: the sketch <-> the engraving
+        if (!boxOpen && shiftShortcut(KEY_G) && g.debugMode()) g.toggleGod();   // Shift+G, in debug mode: GOD on / off
+        if (!boxOpen && shiftShortcut(KEY_S)) g.engrave = !g.engrave;   // Shift+S: the sketch <-> the engraving
         // Cheat mode -- the debug keys, the jumps from mode to mode -- locked till the code is typed:
         // cheat_code (SUPERBO), its letters one after the other (either case: Shift and Caps Lock let
         // be), nothing else pressed (key or pad button) between them, all within 4 seconds. Typed,
@@ -11618,7 +11645,7 @@ int main(int argc, char** argv) {
         fsSince += frame;
         bool smokeFs = false;                             // (tests: --smoke-fullscreen T)
         for (float ft : smokeFullscreen) if (smokeName && smokeClock >= ft && smokeClock - frame < ft) smokeFs = true;
-        if (smokeFs || (!boxOpen && shiftDown && letterPressed(KEY_F) && fsSince >= g.t.fullscreenWait)) {   // Shift+F: fullscreen
+        if (smokeFs || (!boxOpen && shiftShortcut(KEY_F) && fsSince >= g.t.fullscreenWait)) {   // Shift+F: fullscreen
             bool leaving = IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
             if (!leaving) { winPos = GetWindowPosition(); winW = GetScreenWidth(); winH = GetScreenHeight(); }
             ToggleBorderlessWindowed();
@@ -11628,7 +11655,7 @@ int main(int argc, char** argv) {
         }
         for (const Vector3& rs : smokeResize)             // (tests: --smoke-resize T,W,H)
             if (smokeName && smokeClock >= rs.x && smokeClock - frame < rs.x) SetWindowSize((int)rs.y, (int)rs.z);
-        bool shot = !boxOpen && shiftDown && letterPressed(KEY_T);   // Shift+T: a screenshot
+        bool shot = !boxOpen && shiftShortcut(KEY_T);   // Shift+T: a screenshot
 
         // ---- ESC: the question ----
         bool escPress = escHit || (smokeName && smokeEsc >= 0 && smokeClock >= smokeEsc && smokeClock - frame < smokeEsc);
