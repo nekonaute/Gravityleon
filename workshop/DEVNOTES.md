@@ -1,6 +1,10 @@
 # Gravity Leon development notes
 
-The native and browser builds share the C++17 game and raylib renderer. Physics advances at a fixed 120 Hz, with interpolation between steps for rendering.
+Gravity Leon is a C++17 platformer built on raylib. Most of the game lives in `src/main.cpp`, where `Level` reads a plain-text tile map and `Game` advances the simulation at a fixed 120 Hz. Rendering interpolates between physics steps. Movement and collision use the player’s local gravity frame, so the same rules work on floors, walls and ceilings. The grappling tongue wraps around tile corners, and Verlet integration gives its slack section a natural sag. Separate modules handle controller input with SDL-format mappings, live tuning from `data/params.txt`, profiling and audio. Sound effects are synthesised at startup. A custom four-channel ProTracker player streams the original `.mod` music, and raylib handles the MP3 tracks.
+
+Leon and Anna are drawn and animated in code, down to the way Anna’s hat brim bends against a wall. In engraving mode, a GLSL fragment shader turns the scene’s shading into ink strokes and cross-hatches the deepest shadows. The strokes are anchored to the world, so they stay on the same surfaces as the camera moves and gravity turns. The renderer batches ink lines, caches the repeating Japanese background patterns in a GPU vertex buffer and skips geometry hidden by solid ground or outside the view. In a stationary Hard Mode scene at 1280 × 720 on an Apple M3, these optimizations cut median CPU work per frame from 15.67 ms to 0.64 ms. Seeded screenshot comparisons checked that the drawings still matched pixel for pixel. See Optimization measurements in *workshop/optimizaton reports*] if you are curious.
+
+The same game code builds natively on macOS and Linux and compiles to WebAssembly with Emscripten for itch.io. The browser build renders through WebGL 2, follows the browser’s animation frames and saves highscores in IndexedDB. For debugging across a level, Shift+B captures a screenshot, the game state and the exact tuning values in use. Loading the report with `--from-report` lets a developer return to the reported scene and run it with scripted inputs.
 
 ## Building and packaging
 
