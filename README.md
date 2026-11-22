@@ -1,6 +1,8 @@
 # Gravity Leon
 
-Side A: Leon the cameleon runs for the best time to completion in a punishingly hard 2D platformer game. Play it on itch.io (free).
+Play it on [itch.io](https://nikofactory.itch.io/gravity-leon) (free).
+
+Side A: Leon le Cameleon races against the clock in a punishingly difficult 2D platformer. Can you top the leaderboard?
 
 Side B: Gravity Leon is a documented experiment with Vibe Coding for gameplay design. See *about the code* Section below.
 
