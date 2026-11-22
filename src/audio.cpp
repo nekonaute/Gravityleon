@@ -1,4 +1,7 @@
 #include "audio.h"
+#ifdef __EMSCRIPTEN__
+#include "../web/platform.h"
+#endif
 #include "modplayer.h"
 #include "raylib.h"
 #include <algorithm>
@@ -290,7 +293,11 @@ void Audio::shutdown() {
 
 void Audio::update(bool quietForPrompt, float fadeOut, float gap, float fadeIn) {
     if (!gReady || !gMusicPlaying) return;
+#ifdef __EMSCRIPTEN__
+    const float dt = Web::frameTime();
+#else
     const float dt = fminf(GetFrameTime(), 0.1f);
+#endif
     const float was = gFade;
     if (gPhase == kGap) {
         if ((gGapLeft -= dt) <= 0) { switchToNext(); gPhase = kCurrentTrack; }

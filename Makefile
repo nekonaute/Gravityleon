@@ -32,7 +32,7 @@ clean:
 
 # ---- make dist : one self-contained, stripped executable (macOS) --------------------------------
 # An extra, optional target that changes nothing above: plain `make` still builds `gravityleon`,
-# reading params.txt / levels/ / assets/ from disk as always. `make dist` instead bakes those into
+# reading data/params.txt, levels/ and assets/ from disk as always. `make dist` instead bakes those into
 # the binary (obfuscated -- tools/embed_gen.py + src/embed.h), statically links raylib and strips the
 # symbols, so dist/GravityLeon is a single file that runs on another Mac with nothing beside it.
 # It still writes its high scores, screenshots and reports next to itself at runtime, as ever.
@@ -48,7 +48,8 @@ ifneq ($(shell uname),Darwin)
 else
 	@test -f "$(RL_STATIC)" || { echo "no static raylib at $(RL_STATIC) -- 'brew install raylib'"; exit 1; }
 	@mkdir -p dist
-	python3 tools/embed_gen.py $(DIST_GEN) . params.txt levels assets
+	python3 tools/update_dist_highscores.py
+	python3 tools/embed_gen.py $(DIST_GEN) . data/params.txt levels assets data
 	$(CXX) $(CXXFLAGS) $(BUILD_TIME_FLAG) -DEMBED_ASSETS -include src/embed.h $(RL_CFLAGS) $(SRCS) $(DIST_GEN) -o $(DIST_OUT) $(RL_STATIC) $(DIST_FRAMEWORKS); \
 	status=$$?; rm -f $(DIST_GEN); exit $$status
 	strip $(DIST_OUT)
@@ -82,3 +83,20 @@ distclean:
 	rm -rf dist
 
 .PHONY: run clean dist distclean dist_mac linux_dist windows_dist
+
+# Browser build tools, objects and the playable files live outside the native build.
+WEB_PORT ?= 8000
+
+web:
+	python3 tools/build_web.py build
+
+web-dist:
+	python3 tools/build_web.py archive
+
+web-run: web
+	python3 -m http.server $(WEB_PORT) --bind 127.0.0.1 --directory dist/web
+
+web-clean:
+	python3 tools/build_web.py clean
+
+.PHONY: web web-dist web-run web-clean

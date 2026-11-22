@@ -1,4 +1,4 @@
-# The engraving's clouds, from the pen drawings in workshop/ (nuages-1.jpg, nuages-2.jpg): their
+# The engraving's clouds, from the pen drawings nuages-1.jpg and nuages-2.jpg: their
 # ink cleaned, the inside filled with paper, engraver's hatching added in the shade (level strokes,
 # swelling and breaking as a burin cuts them, closer and heavier low down, crossed in the deepest
 # shade; the light from above left), the drawing's own strokes on top. RGBA PNGs.
@@ -6,21 +6,24 @@
 #   python3 tools/make_clouds.py            (writes assets/clouds/cloud-cumulus.png -- the one the game uses)
 #   python3 tools/make_clouds.py --all DIR  (also the billowing one and the streaked one, taken out of the game)
 import os, sys, math
+from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from collections import deque
 
-# Each cloud, cut out of its photo (workshop/): the photo, and the box round it (left, top, right, bottom,
+# Each cloud, cut out of its photo: the photo, and the box round it (left, top, right, bottom,
 # in the photo's pixels).
+DRAWINGS = Path(__file__).resolve().parents[1] / 'workshop' / 'specs and corrections'
 SOURCES = {
-    'billow':  ('workshop/nuages-1.jpg', (1238, 57, 2764, 1900)),
-    'streak':  ('workshop/nuages-2.jpg', (172, 201, 2822, 662)),
-    'cumulus': ('workshop/nuages-2.jpg', (43, 806, 3801, 1800)),
+    'billow':  ('nuages-1.jpg', (1238, 57, 2764, 1900)),
+    'streak':  ('nuages-2.jpg', (172, 201, 2822, 662)),
+    'cumulus': ('nuages-2.jpg', (43, 806, 3801, 1800)),
 }
 
 def crop(name):
-    path, box = SOURCES[name]
-    return Image.open(path).crop(box)
+    filename, box = SOURCES[name]
+    with Image.open(DRAWINGS / filename) as photo:
+        return photo.crop(box)
 
 # ---- the ink: lighting flattened, a soft alpha (0 paper .. 1 ink), specks dropped ----
 from PIL import Image, ImageFilter

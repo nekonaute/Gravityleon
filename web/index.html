@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gravity Leon</title>
+<style>
+  * { box-sizing: border-box }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; color: #f4f0e6; font: 16px system-ui, sans-serif }
+  #canvas { display: block; width: 100%; height: 100%; outline: none; image-rendering: pixelated }
+  :fullscreen #canvas { cursor: none }
+  #gate { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; background: #262630 }
+  #gate[hidden], [hidden] { display: none }
+  button, a { font: inherit; color: #262630; background: #f4f0e6; padding: .5em .9em; border-radius: .25em }
+  button { cursor: pointer }
+  #notice, #downloads { position: absolute; left: .5rem; background: #262630; padding: .5em; max-width: 95%; overflow-wrap: anywhere }
+  #notice { top: 0 }
+  #downloads { bottom: .5rem; display: flex; align-items: center; flex-wrap: wrap; gap: .4em }
+  #downloads:empty { display: none }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="0" aria-label="Gravity Leon game"></canvas>
+<section id="gate"><p id="status" role="status">Loading Gravity Leon…</p><button id="start" hidden>Play Gravity Leon</button></section>
+<p id="notice" role="status" hidden></p>
+<nav id="downloads" aria-label="Game downloads"></nav>
+<script>
+'use strict';
+const GravityLeon = (() => {
+const canvas = document.getElementById('canvas');
+const gate = document.getElementById('gate');
+const statusText = document.getElementById('status');
+const start = document.getElementById('start');
+const notice = document.getElementById('notice');
+const downloads = document.getElementById('downloads');
+function message(text) {
+    notice.textContent = text;
+    notice.hidden = false;
+}
+function stopped(reason) {
+    gate.hidden = false;
+    statusText.hidden = false;
+    statusText.textContent = reason;
+    start.hidden = false;
+    start.disabled = false;
+    start.textContent = 'Restart Gravity Leon';
+    start.onclick = () => location.reload();
+    start.focus();
+}
+const module = {
+    canvas,
+    noInitialRun: true,
+    onAbort: () => stopped('The game stopped unexpectedly.'),
+    async onRuntimeInitialized() {
+        if (!window.WebGL2RenderingContext) {
+            stopped('Gravity Leon needs WebGL 2. Check the graphics settings in your browser.');
+            return;
+        }
+        await module.prepareScores();
+        statusText.hidden = true;
+        start.hidden = false;
+        start.focus();
+        start.onclick = () => {
+            start.disabled = true;
+            gate.hidden = true;
+            canvas.focus();
+            module.callMain([]);
+        };
+    }
+};
+let lastFrame = null;
+let editingReport = false;
+let editingScore = false;
+let scoreKeys = [];
+let pastedText = '';
+let allowFullscreen = false;
+let fullscreenDelay = 0;
+let lastFullscreen = -Infinity;
+function nextFrame() {
+    return new Promise(resolve => {
+        function tick(time) {
+            if (document.hidden || Math.min(canvas.width, canvas.height) < 32) {
+                lastFrame = null;
+                requestAnimationFrame(tick);
+                return;
+            }
+            const delta = lastFrame === null ? 0 : Math.min(.1, (time - lastFrame) / 1000);
+            lastFrame = time;
+            resolve(delta);
+        }
+        requestAnimationFrame(tick);
+    });
+}
+function updateAudioVisibility() {
+    const audio = window.miniaudio;
+    if (!audio) return;
+    for (const device of audio.devices) {
+        if (!device || device.state !== audio.device_state.started) continue;
+        const ctx = device.webaudio;
+        if (document.hidden) ctx.suspend().catch(console.warn);
+        else if (ctx.state !== 'running') ctx.resume().catch(console.warn);
+    }
+}
+document.addEventListener('visibilitychange', () => {
+    lastFrame = null;
+    updateAudioVisibility();
+});
+canvas.addEventListener('pointerdown', () => { canvas.focus(); updateAudioVisibility(); });
+window.addEventListener('keydown', event => {
+    if (document.activeElement !== canvas) return;
+    if (editingReport && event.code === 'KeyV' && (event.ctrlKey || event.metaKey)) {
+        // Leave the browser's paste action enabled even when GLFW consumes keyboard events.
+        event.stopImmediatePropagation();
+        return;
+    }
+    if (event.key === 'Escape' && document.fullscreenElement) {
+        event.stopImmediatePropagation();
+        return;
+    }
+    if (editingScore && !event.ctrlKey && !event.metaKey && !event.isComposing) {
+        let key = 0;
+        if (/^[a-zA-Z]$/.test(event.key)) key = event.key.charCodeAt(0);
+        else if (event.key === 'Backspace') key = 8;
+        else if (event.key === 'Enter' && !event.repeat) key = 13;
+        else if (event.key === 'Escape' && !event.repeat) key = 27;
+        if (key) {
+            scoreKeys.push(key);
+            event.preventDefault();
+        }
+    }
+    if (event.key.startsWith('Arrow') || (!editingReport && event.code === 'Space') ||
+        (event.code === 'KeyR' && event.shiftKey && (event.ctrlKey || event.metaKey))) event.preventDefault();
+    if (event.code === 'KeyF' && event.shiftKey && allowFullscreen && !event.repeat &&
+        performance.now() - lastFullscreen >= fullscreenDelay) {
+        lastFullscreen = performance.now();
+        const request = document.fullscreenElement ? document.exitFullscreen() :
+                        document.documentElement.requestFullscreen?.();
+        if (request) request.catch(() => message('Fullscreen is unavailable in this embed.'));
+        else message('Fullscreen is unavailable in this embed.');
+    }
+}, true);
+canvas.addEventListener('paste', event => {
+    if (editingReport) {
+        pastedText += event.clipboardData.getData('text/plain');
+        event.preventDefault();
+    }
+});
+function offerFile(name, bytes) {
+    const url = URL.createObjectURL(new Blob([bytes], {type: name.endsWith('.png') ? 'image/png' : 'text/plain'}));
+    const link = document.createElement('a');
+    link.download = name;
+    link.href = url;
+    link.textContent = 'Download ' + name;
+    downloads.append(link);
+    link.addEventListener('click', () => {
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        canvas.focus();
+    }, {once: true});
+}
+return {
+    module, message, stopped, nextFrame, offerFile,
+    setInputMode(report, score, toggle, delay) {
+        editingReport = report;
+        editingScore = score;
+        if (!score) scoreKeys.length = 0;
+        if (!report) pastedText = '';
+        allowFullscreen = toggle;
+        fullscreenDelay = delay * 1000;
+    },
+    nextScoreKey() { return scoreKeys.shift() || 0; },
+    takePaste() {
+        const text = pastedText;
+        pastedText = '';
+        return text;
+    }
+};
+})();
+var Module = GravityLeon.module;
+</script>
+<script src="index.js" onerror="GravityLeon.stopped('Could not load the game. Check the connection and retry.')"></script>
+</body>
+</html>

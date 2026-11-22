@@ -3,7 +3,7 @@
 //
 // Only `make dist` defines EMBED_ASSETS, and it force-includes this header into every translation
 // unit (c++ -include src/embed.h). With EMBED_ASSETS on, fopen() is redirected to embed_fopen(),
-// which serves the game's own files (params.txt, levels/, assets/) straight from memory -- they are
+// which serves the game's own files (data/params.txt, levels/, assets/) straight from memory -- they are
 // compiled into the binary, obfuscated -- and hands every other path, and every write, to the real
 // fopen (so the high scores, the screenshots and the reports still land on disk as always).
 //

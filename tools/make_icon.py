@@ -38,7 +38,7 @@ def render_artwork():
     shutil.copy(os.path.join(ROOT, 'gravityleon'), WORK)
     for d in ('levels', 'assets'): shutil.copytree(os.path.join(ROOT, d), os.path.join(WORK, d))
     with open(os.path.join(WORK, 'icon map.txt'), 'w') as f: f.write('\n'.join(''.join(r) for r in rows) + '\n')
-    params = open(os.path.join(ROOT, 'params.txt')).read().split('\n')
+    params = open(os.path.join(ROOT, 'data', 'params.txt')).read().split('\n')
     over = {'screen_ratio': 'off', 'player_screen_height': f'{PLAYER:.6f}', 'view_zoom': '1.0', 'look': 'sketch',
             'background_pattern_easy': 'asanoha', 'background_pattern_parallax': '1.0',   # (the pattern on the world: the tiles meet)
             'camera_zone_area': '16', 'camera_delay_x': '1000', 'camera_delay_y': '1000',      # (the camera held where it is put)
@@ -48,7 +48,7 @@ def render_artwork():
         key = line.split('=')[0].strip()
         out.append(f'{key} = {over.pop(key)}' if key in over and '=' in line else line)
     out += [f'{k} = {v}' for k, v in over.items()]
-    open(os.path.join(WORK, 'params.txt'), 'w').write('\n'.join(out))
+    open(os.path.join(WORK, 'data', 'params.txt'), 'w').write('\n'.join(out))
     # The moment: GOD on (gold, his hat too), the red key the last one taken (red bands), his hat on, facing
     # right, the camera on the tile's middle -- a bug report's state, read back as one.
     icon = Image.new('RGB', (SIZE, SIZE))

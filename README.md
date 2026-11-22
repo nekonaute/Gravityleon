@@ -19,7 +19,6 @@ Run with :
 ```
 ./gravityleon
 ```
-
 ### Credits
 
 **Concept, design, art and code orchestration**

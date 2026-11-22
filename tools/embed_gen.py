@@ -6,11 +6,20 @@
 # casual carver, no more -- the key ships in the binary, so it is obfuscation, not encryption.
 #
 # Each resource's lookup name is its path relative to ROOT with forward slashes -- exactly the
-# string the game passes to fopen (it runs from its own folder: "params.txt", "levels/level 01.txt",
+# string the game passes to fopen (it runs from its own folder: "data/params.txt", "levels/level 01.txt",
 # "assets/music/03 - tno - Tartopom.mod", ...). Writes and any other path fall through to the real fopen.
 import os, sys, random
+from pathlib import Path
+
+# These are the only save files shipped. Both packagers use the game's normal lookup names.
+SCORE_NAMES = ("highscores.txt", "highscores_anna.txt")
+
+def score_resources(root):
+    return [("data/" + name, Path(root) / "data" / ("dist_" + name)) for name in SCORE_NAMES]
 
 def collect(root, spec):
+    if spec == "data":
+        return score_resources(root)
     p = os.path.join(root, spec)
     if os.path.isdir(p):
         out = []
@@ -46,6 +55,7 @@ def main():
     lines.append("#include <cstdio>")
     lines.append("#include <cstring>")
     lines.append("#include <cstdlib>")
+    lines.append("#include <cerrno>")
     lines.append("#undef fopen   // the real libc fopen, for writes and non-embedded paths")
     lines.append("")
     lines.append("namespace {")
@@ -100,6 +110,12 @@ def main():
     lines.append("extern \"C\" FILE* embed_fopen(const char* path, const char* mode) {")
     lines.append("    bool readonly = mode && !strpbrk(mode, \"wa+\");")
     lines.append("    int i = readonly ? findRes(path) : -1;")
+    lines.append("    // Packaged highscores are defaults. Once a player saves, read their table from disk.")
+    saved_paths = " || ".join(f'!strcmp(path, "data/{name}")' for name in SCORE_NAMES)
+    lines.append(f"    if (i >= 0 && ({saved_paths})) {{")
+    lines.append("        FILE* saved = fopen(path, mode);")
+    lines.append("        if (saved || errno != ENOENT) return saved;")
+    lines.append("    }")
     lines.append("    if (i >= 0 && cachedRes(i)) return fmemopen(gCache[i], kRes[i].len, \"rb\");")
     lines.append("    return fopen(path, mode);")
     lines.append("}")

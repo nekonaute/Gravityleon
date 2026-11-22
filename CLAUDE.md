@@ -1,5 +1,7 @@
 # Gravity Leon — working notes
 
+The project owner maintains `README.md`. Never edit it. Put technical documentation in `workshop/DEVNOTES.md`.
+
 ## Bug reports (`Reports/`)
 
 The user files reports from inside the game: **Shift+B** freezes the game, takes a picture of
@@ -70,7 +72,7 @@ the report open until it is settled.
 - **TIPTSI**: Think, Investigate, Plan, Suggest, Test, and ask before Implementation — the code
   may be modified to test, but is reverted before asking.
 
-## params.txt
+## data/params.txt
 
 The user's own file, often edited while the game runs. **Never shrink it or delete a line from
 it without the user's explicit consent** — no text cut either, their notes at the end of the file
@@ -79,7 +81,7 @@ never rewrite or restore the file wholesale. Re-read it right before any edit.
 
 ## Running and testing
 
-`make run` builds and starts the game. Scripted test runs (`--smoke-name …`, see README.md) save
+`make run` builds and starts the game. Scripted test runs (`--smoke-name …`, see the Smoke run section of `workshop/DEVNOTES.md`) save
 a picture into `screenshots/` and quit; they are silent and windowed. Test options that only
 matter for reports: `--from-report FILE`, `--reports-dir DIR` (write reports elsewhere — use it
 in tests so no fake report lands in `Reports/`), `--test-report TEXT`, `--show-report-box TEXT`.

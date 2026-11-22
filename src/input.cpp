@@ -65,6 +65,7 @@ float axis(int ax) {
 
 void Input::init(const std::string& path, float deadzone) {
     setDeadzone(deadzone);
+#ifndef __EMSCRIPTEN__  // The browser supplies the standard gamepad mapping.
     FILE* f = fopen(path.c_str(), "rb");
     if (!f) {
         TraceLog(LOG_WARNING, "INPUT: no gamepad mappings at %s", path.c_str());
@@ -85,6 +86,7 @@ void Input::init(const std::string& path, float deadzone) {
             TraceLog(LOG_WARNING, "INPUT: pad \"%s\" (GUID %s) has no line in %s -- if it does nothing, add one (./gravityleon --pad-check)",
                      name.c_str(), guid.c_str(), path.c_str());
     gipStart();                                          // an Xbox pad on its cable: read by hand
+#endif
 }
 
 void Input::poll() {

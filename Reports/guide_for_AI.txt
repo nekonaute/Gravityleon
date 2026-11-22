@@ -104,7 +104,7 @@ c) Reproduce the moment when it helps. From the GravityLeon folder (the parent o
    - Not restored: the wild flies, particles, a tongue in flight, a knock-out or a death in
      progress.
 d) Do the work as for any request: investigate, change the code or the params, test (scripted
-   runs as above; README.md lists the test options), and report back to the user in the chat.
+   runs as above; ../workshop/DEVNOTES.md lists the test options), and report back to the user in the chat.
 e) Close the report: rename BOTH files, .txt and .png, from "_open" to "_closed" (rest of the
    name unchanged), e.g.
          mv Reports/<stamp>_open.txt Reports/<stamp>_closed.txt
@@ -134,7 +134,7 @@ settled. If it turns out to be several requests, handle them all before closing.
   map grew, a door was added...), copy it into ../.scratch/ and change the copy.
 - Do not create test reports here. To test the report feature itself, write elsewhere:
       ./gravityleon --reports-dir <some temporary folder> --test-report "..." --smoke-name ...
-- ../params.txt is the user's own file, often edited while the game runs. NEVER shrink it or
+- ../data/params.txt is the user's own file, often edited while the game runs. NEVER shrink it or
   delete a line from it without the user's explicit consent (no text cut either, their notes at
   the end included). Re-read it before changing it. Only add lines. Never change a value they
   set unless asked. Never rewrite or restore it wholesale.

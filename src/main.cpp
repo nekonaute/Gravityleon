@@ -9,6 +9,9 @@
 //     WITH A DELAY -- yet he never leaves a central zone covering half of the screen's area.
 //   * A long fall ends in a violent landing; then the camera recentres.
 
+#ifdef __EMSCRIPTEN__
+#include "../web/platform.h"
+#endif
 #include "audio.h"
 #include "input.h"
 #include "padcheck.h"
@@ -100,7 +103,10 @@ static const float kTile = 40.0f;
 static const float kStep = 1.0f / 120.0f;          // fixed physics step
 
 // The key by the space bar that jumps too: Cmd on a Mac, Ctrl elsewhere.
-#if defined(__APPLE__)
+#if defined(__EMSCRIPTEN__)
+static int kJumpKey1 = KEY_LEFT_CONTROL, kJumpKey2 = KEY_RIGHT_CONTROL;
+static const char* kJumpKeyName = "Ctrl";
+#elif defined(__APPLE__)
 static const int kJumpKey1 = KEY_LEFT_SUPER, kJumpKey2 = KEY_RIGHT_SUPER;
 static const char* kJumpKeyName = "Cmd";
 #else
@@ -2670,6 +2676,7 @@ struct Game {
         resetDash();
         tonguePress = false; tgResend = false; chewPress = false; jumpBuf = 0; paying = false;
         unwedgeCrates();
+        updateHatClearance();                         // the countdown can draw the hat before the next physics step
         faceNextCheckpoint();
         if (cpPine >= 0 && level.pineStage[cpPine] == 4) {   // (back at a checkpoint of cameleon mode -- its key's, its pineapples', its flag's: the balloons from the start)
             auto it = t.balloonRespawnFirst.find(cpPine);     // (that checkpoint's own colour first, if it has one: color_balloon_respawn_first)
@@ -3341,11 +3348,11 @@ struct Game {
         });
         return room;
     }
-    // Anna's brim, reaching out past her hitbox: the room to a wall on each side, at its height -- from
-    // her middle, in her frame (1e9: none within its reach).
-    void brimRoom() {
+    void updateHatClearance() {
+        hatRoom = hasHat ? roomAbove(hatSeat() + hatCrown() + 4) : 1e9f;
+        // Anna's brim reaches past her hitbox. Measure each wall from her middle in her gravity frame.
         hatSideL = hatSideR = 1e9f;
-        if (!hasHat || endT >= 0) return;               // (the ending: free -- not bent on its unseen wall)
+        if (!anna || !hasHat || endT >= 0) return;      // (the ending: free -- not bent on its unseen wall)
         float brim = pos.y - kLeonH - kAnnaSeat;
         boxes(pos.x - kAnnaBrimReach, brim - kAnnaCurlRise, pos.x + kAnnaBrimReach, brim + 1, [&](const Rectangle& r) {
             if (r.y + r.height < brim - 0.5f) return;       // (a ceiling: not down to the brim -- its curls are pressed flat by it, hatRoom)
@@ -5658,9 +5665,8 @@ struct Game {
         // gets any closer. (Too fast for that, the head's own bump still is the hat's.)
         // Dark matter is no ceiling to the hat: it takes no bump off it, and stops nothing -- he goes on,
         // and dies if his body gets there. Only his hat in it, he lives, the hat squashed to the room left.
-        hatRoom = hasHat ? roomAbove(hatSeat() + hatCrown() + 4) : 1e9f;
+        updateHatClearance();
         if (anna) {
-            brimRoom();
             float want = vel.x > 30 ? -1.0f : vel.x < -30 ? 1.0f : hatLeanDir >= 0 ? 1.0f : -1.0f;   // (still: as it was)
             hatLeanDir += clampf(want - hatLeanDir, -6 * dt, 6 * dt);
         }
@@ -7132,18 +7138,31 @@ static void engraveGirder(const Level& L, int x, int y, float X, float Y) {
 // shader of its own from shapes laid out on the screen (layoutClouds), each layer's lines sliding
 // with it. Its pixels leave with alpha 0: the engraving shader keeps them as they are.
 static const int kSkyClouds = 24, kSkyShapes = 160;
-static const char* kSkyFS = R"(#version 330
-in vec2 fragTexCoord;
-in vec4 fragColor;
+#ifdef __EMSCRIPTEN__
+#define GRAVITY_FRAGMENT_INPUTS "#version 300 es\nprecision highp float;\nprecision highp int;\nin mediump vec2 fragTexCoord;\nin mediump vec4 fragColor;\n"
+#else
+#define GRAVITY_FRAGMENT_INPUTS "#version 330\nin vec2 fragTexCoord;\nin vec4 fragColor;\n"
+#endif
+static const char* kSkyFS = GRAVITY_FRAGMENT_INPUTS R"(
 uniform vec2 screen;
 uniform float spacing;            // between the lines in the shade; the open sky's are twice as far apart
 uniform vec2 light;               // towards the light, on the screen
 uniform vec2 frames[3];           // how far each layer has slid: its lines go with it
 uniform int count;                // clouds
-uniform vec4 clouds[96];          // per cloud: its box; (first shape, shapes, layer, strength); its halo of
+)"
+#ifdef __EMSCRIPTEN__
+R"(layout(std140) uniform SkyLayoutData {
+    vec4 clouds[96];
+    vec4 shapes[320];
+};
+)"
+#else
+R"(uniform vec4 clouds[96];          // per cloud: its box; (first shape, shapes, layer, strength); its halo of
                                   // open sky (x, y, rx, ry); its body's lines (slant, about x, 0, 0)
 uniform vec4 shapes[320];         // per shape: (x, y, rx, ry), then (kind: 0 billow / 1 body, shade, phase, scallops)
-out vec4 finalColor;
+)"
+#endif
+R"(out vec4 finalColor;
 
 float hash(vec2 q) {              // on whole numbers: as steady however far the clouds have slid
     uvec2 u = uvec2(ivec2(floor(q))) * uvec2(1597334673u, 3812015801u);
@@ -7316,9 +7335,7 @@ static void layoutClouds(int W, int H, const Vector2 scroll[3], SkyLayout& L) {
 // world (the camera's transform undone from each pixel), wavering a little as if cut by hand. Where
 // the tint canvas covers (tintTex: Leon or Anna, the one waiting, the Monstermunchs), hand-coloured,
 // as an old print: the same lines, a little lighter, its colour washed in under them, not paper.
-static const char* kEngraveFS = R"(#version 330
-in vec2 fragTexCoord;
-in vec4 fragColor;
+static const char* kEngraveFS = GRAVITY_FRAGMENT_INPUTS R"(
 uniform sampler2D texture0;
 uniform vec2 screen;        // the screen, in pixels...
 uniform vec2 pixelScale;    // ...and its pixels per framebuffer pixel
@@ -9875,7 +9892,11 @@ static std::string screenshotPath(const char* name, bool withSeconds) {
 static void saveScreen(const std::string& path) {
     rlDrawRenderBatchActive();   // flush the HUD, still queued until EndDrawing
     Image img = gameShot();
+#ifdef __EMSCRIPTEN__
+    if (ExportImage(img, path.c_str())) Web::download(path.c_str());
+#else
     ExportImage(img, path.c_str());
+#endif
     UnloadImage(img);
     TraceLog(LOG_INFO, "SHOT: %s", path.c_str());
 }
@@ -10016,7 +10037,11 @@ struct Scores {
         if (!f) { TraceLog(LOG_WARNING, "SCORES: cannot write %s", path.c_str()); return; }
         for (int k = 0; k < kParts; k++)
             for (const Entry& e : part[k]) fprintf(f, "%s %s %.3f\n", tag(k), e.name.c_str(), e.t);
+#ifdef __EMSCRIPTEN__
+        if (fclose(f) == 0) Web::scoresChanged();
+#else
         fclose(f);
+#endif
     }
     // Where a time would go in its part's table (0 the best), or -1: not good enough.
     int place(int k, float t) const {
@@ -10362,13 +10387,19 @@ static void drawHud(const Game& g, const Scores& sc, const NameEntry& en, bool c
         // time, its memory -- read twice a second, so they can be read.
         static double next = 0;
         static int fps = 0;
+#ifdef __EMSCRIPTEN__
+        if (GetTime() >= next) { next = GetTime() + 0.5; fps = GetFPS(); }
+        const char* line[] = {TextFormat("FPS : %d per sec", fps)};
+#else
         static float cpu = 0, mem = 0;
         if (GetTime() >= next) { next = GetTime() + 0.5; fps = GetFPS(); cpu = Perf::cpuPercent(); mem = Perf::memoryMB(); }
         const char* line[3] = {TextFormat("FPS : %d per sec", fps), TextFormat("CPU : %.0f%%", cpu), TextFormat("MEM : %.0fMB", mem)};
+#endif
+        const int lines = sizeof(line) / sizeof(line[0]);
         int ss = (int)(18 * ui);
         Color ink = ColorLerp(kInk, kPaper, g.dark);
-        for (int j = 0; j < 3; j++) {
-            float ly = gameH() - 15 * ui - (3 - j) * ss - (2 - j) * 6 * ui;
+        for (int j = 0; j < lines; j++) {
+            float ly = gameH() - 15 * ui - (lines - j) * ss - (lines - 1 - j) * 6 * ui;
             DrawText(line[j], (int)(18 * ui), (int)ly, ss, ink);   // (no plate: in the engraving's dark, white on it)
         }
     }
@@ -10977,7 +11008,19 @@ int main(int argc, char** argv) {
         }
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | (noVsync ? 0 : FLAG_VSYNC_HINT) | FLAG_MSAA_4X_HINT);
     InitWindow(1280, 720, "Gravity Leon");
+#ifdef __EMSCRIPTEN__
+    if (!IsWindowReady()) {
+        Web::graphicsFailed();
+        return 1;
+    }
+#endif
     if (seedSet) SetRandomSeed(seed);        // (after InitWindow, which seeds from the clock; before the first draw)
+#ifdef __EMSCRIPTEN__
+    SetTargetFPS(0);                         // requestAnimationFrame drives presentation
+    if (Web::macKeyboard()) {
+        kJumpKey1 = KEY_LEFT_SUPER; kJumpKey2 = KEY_RIGHT_SUPER; kJumpKeyName = "Cmd";
+    }
+#else
     ChangeDirectory(GetApplicationDirectory());
     // Run as a macOS app (make dist_mac: GravityLeon.app/Contents/MacOS): what it writes -- the highscores,
     // screenshots, bug reports -- in the user's own folder, ~/Library/Application Support/GravityLeon,
@@ -10987,14 +11030,15 @@ int main(int argc, char** argv) {
         if (!DirectoryExists(support.c_str())) MakeDirectory(support.c_str());
         if (DirectoryExists(support.c_str())) ChangeDirectory(support.c_str());
     }
-    SetExitKey(KEY_NULL);                    // (ESC asks first: the question, in the main loop)
     SetTargetFPS(smokeName ? 0 : 144);
+#endif
+    SetExitKey(KEY_NULL);                    // (ESC asks first: the question, in the main loop)
     rlDisableBackfaceCulling();
 
     Game g;
     g.trace = traceKnock;
     g.traceLean = traceLean;
-    g.params.load("params.txt");
+    g.params.load("data/params.txt");
     std::map<std::string, std::string> reported;  // --from-report: the state it recorded
     if (!fromReport.empty()) {
         std::string reportedParams;
@@ -11117,10 +11161,12 @@ int main(int argc, char** argv) {
     // windowed one -- the window stayed screen-sized while raylib thought it windowed, and the
     // picture no longer matched it (the top half blurred). So also: one toggle at a time
     // (fullscreen_toggle_wait).
+    float fsSince = 1e9f;                      // seconds since the last toggle
+#ifndef __EMSCRIPTEN__
     Vector2 winPos = GetWindowPosition();
     int winW = GetScreenWidth(), winH = GetScreenHeight();
-    float fsSince = 1e9f;                      // seconds since the last toggle
     if (!smokeName && g.params.b("fullscreen", true)) { ToggleBorderlessWindowed(); HideCursor(); fsSince = 0; }
+#endif
     bool titleWait = !smokeName;               // the title card, holding the game until A...
     float startFade = -1;                      // ...then the fade out of it and in to the game, the game still held (-1: none)
     // ESC: a question first, over a screen fading to black (esc_fade_time) -- on the title "Exit
@@ -11163,11 +11209,19 @@ int main(int argc, char** argv) {
     // ...and its sky, cut by a shader of its own (drawn on a stretched white texel); without it,
     // the old drawn clouds.
     Shader skySh = LoadShaderFromMemory(nullptr, kSkyFS);
-    const bool skyOk = IsShaderValid(skySh) && skySh.id != rlGetShaderIdDefault();
+    bool skyOk = IsShaderValid(skySh) && skySh.id != rlGetShaderIdDefault();
+#ifdef __EMSCRIPTEN__
+    skyOk = skyOk && Web::initSky(skySh.id, sizeof(SkyLayout::cl), sizeof(SkyLayout::sh));
+#endif
     if (!skyOk) TraceLog(LOG_WARNING, "ENGRAVING: the sky's shader did not compile -- drawn clouds instead");
     const char* skyNames[7] = {"screen", "spacing", "light", "count", "clouds", "shapes", "frames"};
     int skyLoc[7];
-    for (int k = 0; k < 7; k++) skyLoc[k] = GetShaderLocation(skySh, skyNames[k]);
+    for (int k = 0; k < 7; k++) {
+#ifdef __EMSCRIPTEN__
+        if (k == 4 || k == 5) continue;       // clouds and shapes live in the uniform block
+#endif
+        skyLoc[k] = GetShaderLocation(skySh, skyNames[k]);
+    }
     const Texture2D whiteTex = {rlGetTextureIdDefault(), 1, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
     float tongueWait = 0;                    // B pressed, waiting a moment for a direction
     bool rtWas = false;                      // RT last frame: a chew per pull, not per frame
@@ -11242,6 +11296,9 @@ int main(int argc, char** argv) {
         if (!body.empty() && body.back() != '\n') body += "\n";
         body += "[end params.txt]\n";
         bool ok = ExportImage(reportShot, png.c_str()) && writeText(txt, body);
+#ifdef __EMSCRIPTEN__
+        if (ok) { Web::download(png.c_str()); Web::download(txt.c_str()); }
+#endif
         TraceLog(ok ? LOG_INFO : LOG_WARNING, "REPORT: %s %s", ok ? "saved" : "could not save", txt.c_str());
         return ok ? txt : std::string();
     };
@@ -11260,14 +11317,22 @@ int main(int argc, char** argv) {
         reportState = g.reportState(levelPath());
         appendf(reportState, "engraving: %d\n", g.engrave ? 1 : 0);
         appendf(reportState, "screen: %d %d   (pixels; fullscreen %d)\n", GetScreenWidth(), GetScreenHeight(),
+#ifdef __EMSCRIPTEN__
+                Web::fullscreen() ? 1 : 0);
+#else
                 IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE) ? 1 : 0);
+#endif
         appendf(reportState, "game.area: %d %d %d %d   (the game's part of it: x y width height -- black bands round it)\n", gGameX, gGameY, gGameW, gGameH);
+#ifdef __EMSCRIPTEN__
+        appendf(reportState, "canvas: %d %d framebuffer pixels\n", GetRenderWidth(), GetRenderHeight());
+#else
         {   // (the window as the system has it: if the picture and the window part ways, it shows here)
             Vector2 wp = GetWindowPosition(), dpi = GetWindowScaleDPI();
             int mon = GetCurrentMonitor();
             appendf(reportState, "window: at %.0f %.0f, render %d %d, dpi scale %.2f %.2f, monitor %d: %d %d\n", wp.x, wp.y,
                     GetRenderWidth(), GetRenderHeight(), dpi.x, dpi.y, mon, GetMonitorWidth(mon), GetMonitorHeight(mon));
         }
+#endif
     };
     if (showReportBoxSet) {                   // tests: "[|]" in the text marks where the cursor is
         reportOpen = true;
@@ -11278,9 +11343,14 @@ int main(int argc, char** argv) {
     }
     std::vector<float> frameMs;              // --frame-log: each frame's start (ms from the first) and its work before the swap (ms)
     const double logT0 = GetTime();
+#ifdef __EMSCRIPTEN__
+    while (true) {
+        float frame = Web::nextFrame();
+#else
     while (!WindowShouldClose()) {
-        const double frameT0 = frameLog.empty() ? 0 : GetTime();
         float frame = smokeName ? 1.0f / 60.0f : fminf(GetFrameTime(), 0.1f);
+#endif
+        const double frameT0 = frameLog.empty() ? 0 : GetTime();
         fitGame(g.t.screenRatio);                         // (the window may have changed: the game's area in it, its shape kept)
         {   // the far layer's pattern: the mode he is in -- the latest started (the title: easy) -- a change crossfading;
             // a golden key taken (and a golden run), the golden one (background_pattern_golden)
@@ -11321,19 +11391,29 @@ int main(int argc, char** argv) {
         const bool typing = entry.open && !reportOpen;    // a highscore's name: the letter keys write it, the game goes on
         if (typing) {                                     // ---- a new highscore: its three letters ----
             entry.clock += frame;
-            int cp;
-            while ((cp = GetCharPressed()) > 0)
-                if (isalpha(cp) && cp < 128) {
+            auto editName = [&](int key) {
+                if ((key >= 'a' && key <= 'z') || (key >= 'A' && key <= 'Z')) {
                     if (entry.copied) entry.len = 0;      // (the game's name offered: a letter typed starts another)
                     entry.copied = false;
-                    if (entry.len < 3) entry.name[entry.len++] = (char)toupper(cp);
+                    if (entry.len < 3) entry.name[entry.len++] = (char)toupper(key);
                     entry.clock = 0;
+                } else if (key == '\b' && entry.len > 0) {
+                    entry.len--; entry.copied = false; entry.clock = 0;
+                } else if (key == '\r' || key == 27) {
+                    if (key == 27) entry.len = 0;         // (no name: '???')
+                    closeEntry();
                 }
-            if ((IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) && entry.len > 0) {
-                entry.len--; entry.copied = false; entry.clock = 0;
-            }
-            if (escHit) entry.len = 0;                    // (no name: '???')
-            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER) || escHit) closeEntry();
+            };
+#ifdef __EMSCRIPTEN__
+            // DOM keydown carries both the layout's letter and its editing keys, in order.
+            while (int key = Web::nextScoreKey()) if (entry.open) editName(key);
+            if (entry.open && escHit) editName(27);       // also the gamepad's Menu button
+#else
+            while (int cp = GetCharPressed()) if (cp >= 32) editName(cp);
+            if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) editName('\b');
+            if (escHit) editName(27);
+            else if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) editName('\r');
+#endif
         }
         if (reportOpen && !showReportBoxSet) {
             reportClock += frame;
@@ -11355,18 +11435,22 @@ int main(int argc, char** argv) {
             bool cmdK = IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER) || IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
             bool altK = IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT);
             auto pressed = [](int k) { return IsKeyPressed(k) || IsKeyPressedRepeat(k); };
-            if (cmdK && IsKeyPressed(KEY_V)) {                            // paste
-                if (const char* clip = GetClipboardText()) {
-                    std::string s;
-                    for (const char* q = clip; *q; q++)
-                        if (*q != '\r' && ((unsigned char)*q >= 32 || *q == '\n')) s += *q;
-                    if (reportText.size() + s.size() > 8000) {            // as much as fits, whole characters
-                        size_t n = 8000 - reportText.size();
-                        while (n > 0 && n < s.size() && ((unsigned char)s[n] & 0xC0) == 0x80) n--;
-                        s.resize(n);
-                    }
-                    insert(s);
+#ifdef __EMSCRIPTEN__
+            const std::string pasted = Web::takePaste();
+            const char* clip = pasted.empty() ? nullptr : pasted.c_str();
+#else
+            const char* clip = cmdK && IsKeyPressed(KEY_V) ? GetClipboardText() : nullptr;
+#endif
+            if (clip) {
+                std::string s;
+                for (const char* q = clip; *q; q++)
+                    if (*q != '\r' && ((unsigned char)*q >= 32 || *q == '\n')) s += *q;
+                if (reportText.size() + s.size() > 8000) {            // as much as fits, whole characters
+                    size_t n = 8000 - reportText.size();
+                    while (n > 0 && n < s.size() && ((unsigned char)s[n] & 0xC0) == 0x80) n--;
+                    s.resize(n);
                 }
+                insert(s);
             }
             if (pressed(KEY_BACKSPACE) && reportCursor > 0) {             // one whole character back...
                 size_t p = prevChar(reportText, reportCursor);
@@ -11643,6 +11727,9 @@ int main(int argc, char** argv) {
                 }
         }
         fsSince += frame;
+#ifdef __EMSCRIPTEN__
+        if (!boxOpen) shiftShortcut(KEY_F);     // consumes the Shift dash chord
+#else
         bool smokeFs = false;                             // (tests: --smoke-fullscreen T)
         for (float ft : smokeFullscreen) if (smokeName && smokeClock >= ft && smokeClock - frame < ft) smokeFs = true;
         if (smokeFs || (!boxOpen && shiftShortcut(KEY_F) && fsSince >= g.t.fullscreenWait)) {   // Shift+F: fullscreen
@@ -11653,6 +11740,7 @@ int main(int argc, char** argv) {
             if (IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)) HideCursor(); else ShowCursor();
             fsSince = 0;
         }
+#endif
         for (const Vector3& rs : smokeResize)             // (tests: --smoke-resize T,W,H)
             if (smokeName && smokeClock >= rs.x && smokeClock - frame < rs.x) SetWindowSize((int)rs.y, (int)rs.z);
         bool shot = !boxOpen && shiftShortcut(KEY_T);   // Shift+T: a screenshot
@@ -11817,7 +11905,7 @@ int main(int argc, char** argv) {
             if (g.partNear(ms.part) <= 0) { ms.away = true; continue; }
             if (!ms.away || entry.open || reportOpen) continue;
             ms.away = false;
-            std::vector<Scores::Entry>& rows = scores.part[ms.part];
+            std::vector<Scores::Entry>& rows = myScores().part[ms.part];
             for (size_t r = 0; r < rows.size(); r++) {
                 if (fabsf(rows[r].t - ms.time) > 1e-4f) continue;
                 entry = NameEntry{};
@@ -11846,7 +11934,11 @@ int main(int argc, char** argv) {
         // (the music just begun, round again, off).
         if (float mt = Audio::musicTime(kMusic[musicPlaying]); mt < 0) g.musicT = -1;
         else {
+#ifdef __EMSCRIPTEN__
+            float ahead = g.musicT + frame;
+#else
             float ahead = g.musicT + fminf(GetFrameTime(), 0.1f);
+#endif
             g.musicT = g.musicT < 0 || fabsf(mt - ahead) > 0.25f ? mt : ahead + 0.1f * (mt - ahead);
         }
         if (g.trace && g.musicT >= 0) {                    // (tests: the music's clock, once a second of it)
@@ -12248,8 +12340,12 @@ int main(int argc, char** argv) {
                     SetShaderValue(skySh, skyLoc[2], light, SHADER_UNIFORM_VEC2);
                     SetShaderValue(skySh, skyLoc[3], &sky.clouds, SHADER_UNIFORM_INT);
                     if (sky.clouds > 0) {
+#ifdef __EMSCRIPTEN__
+                        Web::uploadSky(sky.cl, 16 * sky.clouds * sizeof(float), sky.sh, 8 * sky.shapes * sizeof(float));
+#else
                         SetShaderValueV(skySh, skyLoc[4], sky.cl, SHADER_UNIFORM_VEC4, 4 * sky.clouds);
                         SetShaderValueV(skySh, skyLoc[5], sky.sh, SHADER_UNIFORM_VEC4, 2 * sky.shapes);
+#endif
                     }
                     SetShaderValueV(skySh, skyLoc[6], frames, SHADER_UNIFORM_VEC2, 3);
                     rlSetBlendFactors(RL_ONE, RL_ZERO, RL_FUNC_ADD);
@@ -12656,6 +12752,9 @@ int main(int argc, char** argv) {
         if (shot) saveScreen(screenshotPath("shot", true));
         if (smokeDone) saveScreen(screenshotPath(smokeName, false));
         EndDrawing();
+#ifdef __EMSCRIPTEN__
+        Web::inputMode(reportOpen, entry.open && !reportOpen, !reportOpen && !entry.open && !ask, g.t.fullscreenWait);
+#endif
         if (smokeDone) break;
     }
     closeEntry();                                         // (quitting with a name waiting: kept as it is)
@@ -12668,6 +12767,12 @@ int main(int argc, char** argv) {
         }
     if (reportShot.data) UnloadImage(reportShot);
     Audio::shutdown();
+#ifdef __EMSCRIPTEN__
+    Web::releaseSky();
+#endif
     CloseWindow();
+#ifdef __EMSCRIPTEN__
+    Web::finish();
+#endif
     return 0;
 }
