@@ -41,7 +41,7 @@ Niko/Factory, with additional help from Myr and Ris.
 
 Gravity Leon has been vibecoded with Claude Code Opus 5.5 Extra High. Made in C++ with raylib and SDL GameControllerDB. 
 
-I used a multimodal approach combining...
+I used a multimodal prompting approach combining...
 
 1. lengthy text prompts, including detailed software architecture and implementation guidelines
 2. hand-drawn prompts for design and gameplay (on paper and computer)
