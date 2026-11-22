@@ -1,0 +1,13 @@
+Side A: Leon le Cameleon races against the clock in a punishingly difficult 2D platformer.
+
+Side B: Gravity Leon is a documented experiment with Vibe Coding for gameplay design. It is open source and available on github at https://github.com/nekonaute/Gravityleon/ (including both the source and reports on how code orchestration was done).
+
+Gravity Leon has been vibecoded with Claude Code Opus 5.5 Extra High. Made in C++ with raylib and SDL GameControllerDB. 
+
+I used a multimodal approach combining...
+
+- lengthy text prompts, including detailed software architecture and implementation guidelines
+- hand-drawn prompts for design and gameplay (on paper and computer)
+- in-game reporting system with snapshot + user input (CTL+B in-game)
+
+Rough estimate : about 50 hours of human work for concept, design, art and code orchestration. We composed the music a quarter of a century ago (protracker modules and mp3).

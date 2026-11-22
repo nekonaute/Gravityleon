@@ -2,13 +2,18 @@
 """Keep the fastest recorded time per mode in each character's distribution table."""
 import argparse
 from decimal import Decimal, InvalidOperation
-import fcntl
+from contextlib import contextmanager
 import os
 from pathlib import Path
 import sys
 import tempfile
 
 from embed_gen import SCORE_NAMES
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 
 def read_table(path):
@@ -43,12 +48,26 @@ def best_rows(directory, name):
     return "".join(line + "\n" for line in lines)
 
 
+@contextmanager
+def lock_directory(directory):
+    if os.name == "nt":
+        # Windows byte-range locks require a file. Closing it releases the lock.
+        with (directory / ".dist_highscores.lock").open("a+b") as lock:
+            lock.seek(0)
+            msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+            yield
+    else:
+        lock = os.open(directory, os.O_RDONLY)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            yield
+        finally:
+            os.close(lock)
+
+
 def update(directory):
     directory.mkdir(parents=True, exist_ok=True)
-    # Native and web releases can be built at the same time.
-    lock = os.open(directory, os.O_RDONLY)
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with lock_directory(directory):
         updates = [(directory / ("dist_" + name), best_rows(directory, name)) for name in SCORE_NAMES]
         for path, contents in updates:
             if contents is None:
@@ -57,14 +76,15 @@ def update(directory):
                 try:
                     tmp.write(contents.encode("utf-8"))
                     tmp.flush()
-                    os.fchmod(tmp.fileno(), path.stat().st_mode & 0o777 if path.exists() else 0o644)
+                    if os.name != "nt":
+                        os.fchmod(tmp.fileno(), path.stat().st_mode & 0o777 if path.exists() else 0o644)
+                    tmp.close()
                     os.replace(tmp.name, path)
                 finally:
+                    tmp.close()
                     if os.path.exists(tmp.name):
                         os.unlink(tmp.name)
             print("Updated", path)
-    finally:
-        os.close(lock)
 
 
 if __name__ == "__main__":

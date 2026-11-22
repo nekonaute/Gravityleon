@@ -7,6 +7,7 @@
 !/screenshots/screenshots.txt
 /Reports/*
 !/Reports/guide_for_AI.txt
+/Release/*
 
 # Editor and Python artifacts
 .DS_Store

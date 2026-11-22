@@ -2,9 +2,9 @@
 
 Gravity Leon is a C++17 platformer built on raylib. Most of the game lives in `src/main.cpp`, where `Level` reads a plain-text tile map and `Game` advances the simulation at a fixed 120 Hz. Rendering interpolates between physics steps. Movement and collision use the player’s local gravity frame, so the same rules work on floors, walls and ceilings. The grappling tongue wraps around tile corners, and Verlet integration gives its slack section a natural sag. Separate modules handle controller input with SDL-format mappings, live tuning from `data/params.txt`, profiling and audio. Sound effects are synthesised at startup. A custom four-channel ProTracker player streams the original `.mod` music, and raylib handles the MP3 tracks.
 
-Leon and Anna are drawn and animated in code, down to the way Anna’s hat brim bends against a wall. In engraving mode, a GLSL fragment shader turns the scene’s shading into ink strokes and cross-hatches the deepest shadows. The strokes are anchored to the world, so they stay on the same surfaces as the camera moves and gravity turns. The renderer batches ink lines, caches the repeating Japanese background patterns in a GPU vertex buffer and skips geometry hidden by solid ground or outside the view. In a stationary Hard Mode scene at 1280 × 720 on an Apple M3, these optimizations cut median CPU work per frame from 15.67 ms to 0.64 ms. Seeded screenshot comparisons checked that the drawings still matched pixel for pixel. See Optimization measurements in *workshop/optimizaton reports*] if you are curious.
+Leon and Anna are drawn and animated in code, down to the way Anna’s hat brim bends against a wall. In engraving mode, the renderer draws the world to an RGBA texture and the characters and monsters to a separate tint texture. A full-screen GLSL fragment shader uses each pixel’s brightness to lay down diagonal ink strokes, adding a second diagonal and then horizontal hatching as shadows deepen. It reverses the camera transform to keep the ink anchored to the walls through gravity turns. Screen-space derivatives smooth the stroke edges, and the tint texture supplies a wash of colour beneath the ink. For the sketch’s repeating Japanese patterns, the CPU skips tiles outside the view or hidden by solid ground. It packs the visible strokes into a reusable GPU vertex buffer capped at 16 MiB, then draws each run of one colour in a single call. In a stationary Hard Mode scene at 1280 × 720 on an Apple M3, these optimizations cut median CPU work per frame from 15.67 ms to 0.64 ms. Seeded screenshot comparisons checked that the drawings still matched pixel for pixel. See Optimization measurements in *workshop/optimization reports* if you are curious.
 
-The same game code builds natively on macOS and Linux and compiles to WebAssembly with Emscripten for itch.io. The browser build renders through WebGL 2, follows the browser’s animation frames and saves highscores in IndexedDB. For debugging across a level, Shift+B captures a screenshot, the game state and the exact tuning values in use. Loading the report with `--from-report` lets a developer return to the reported scene and run it with scripted inputs.
+The same game code builds natively on macOS and Linux and compiles to WebAssembly with Emscripten for itch.io. The shaders share their rendering logic across desktop OpenGL and WebGL 2. In the browser, the procedural sky shader receives cloud shapes for three parallax layers through a uniform buffer. Both renderers use colour-only off-screen framebuffers where supported, saving four bytes per pixel on each target by omitting the depth attachment. The browser build follows the browser’s animation frames and saves highscores in IndexedDB. For debugging across a level, Shift+B captures a screenshot, the game state and the exact tuning values in use. Loading the report with `--from-report` lets a developer return to the reported scene and run it with scripted inputs.
 
 ## Building and packaging
 
@@ -18,14 +18,18 @@ On macOS, `make dist` uses Python 3 and the static raylib library to build `dist
 
 `make dist_mac` packages the executable as `dist/GravityLeon.app` and signs it ad hoc. The icon step uses Pillow and `tools/icon-macos.png`, the rounded version of `tools/icon.png`. The app uses the same save directories under `~/Library/Application Support/GravityLeon/`.
 
-`make linux_dist` and `make windows_dist` are placeholders for future packaging.
+On Linux, `make linux_dist` uses Python 3 and static raylib to build `dist/GravityLeon-linux`, a stripped executable with embedded resources. It uses the system libraries for the Linux desktop and writes scores, screenshots and reports beside the executable.
 
+
+On Windows, run `make windows_dist` from an MSYS2 UCRT64 shell with GNU Make, Python 3, a MinGW-w64 C++ compiler and a static raylib built for the same toolchain. The target produces `dist/GravityLeon.exe` with embedded resources and writes scores, screenshots and reports beside the executable. Windows also uses its temporary directory when reading some embedded resources.
+
+The target uses the compiler and raylib flags from the regular build by default. With a separate raylib build or a cross-compiler, set `WINDOWS_CXX` to the MinGW-w64 compiler, `WINDOWS_RL_STATIC` to the matching `libraylib.a`, and `WINDOWS_RL_CFLAGS` to the matching header flags, such as `-I/path/to/raylib/src`.
 
 Game settings live in `data/params.txt`. When running the local executable, edits take effect during play. Git tracks the project data in `data/`. Playtest screenshots and reports stay local, with `screenshots/screenshots.txt` and `Reports/guide_for_AI.txt` shared in Git.
 
 ### Distribution highscores
 
-`make dist`, `make dist_mac` and `make web-dist` run `tools/update_dist_highscores.py` before packaging. You can also run the script directly. For each character and mode, it keeps the fastest recorded time from the local and distribution tables. An equal time keeps the existing distribution initials. A mode appears once someone has recorded a time for it.
+`make dist`, `make dist_mac`, `make linux_dist`, `make windows_dist` and `make web-dist` run `tools/update_dist_highscores.py` before packaging. You can also run the script directly. For each character and mode, it keeps the fastest recorded time from the local and distribution tables. An equal time keeps the existing distribution initials. A mode appears once someone has recorded a time for it.
 
 The packaged highscore tables come from `data/dist_highscores.txt` and `data/dist_highscores_anna.txt` and ship under the names `data/highscores.txt` and `data/highscores_anna.txt`. The updater also reads older files named `highscore.txt` and `highscore_anna.txt` if present. Both packagers include only `params.txt` and the two starting tables from `data/`. Existing player tables take precedence. Character unlocks last for the current session.
 
@@ -105,7 +109,7 @@ Leon for ever.
 Only what lies within two screens of Leon goes on moving -- flies, lamps' blackouts, blocks, a lost
 hat, the Monstermunchs (one farther goes back to sleep at once, its tongue in) -- and only what the
 screen can show is drawn.
-Near the exit lies a hat -- a tall crown in four bands, from the brim up colour, white, colour, white: the colour the last key taken's (`key_color_*`), black before any; its white white -- through the Love door, pink all over, as his body, bands and all (no stripes); the Solo door's gold, not (white and the key's colour still) -- a colour fly's tint as his body, GOD's gold; knocked off, its own still: worn, it takes the bumps on his head -- crushed by the ceiling it meets,
+Near the exit lies a hat -- a tall crown in four bands, from the brim up colour, white, colour, white: the colour the last key taken's (`key_color_*`), black before any; its white white -- through the Love door, the bands and white take his body colour, pink in a regular game or grey in a Solo Run; the Solo door's gold, not (white and the key's colour still) -- a colour fly's tint as his body, GOD's gold; knocked off, its own still: worn, it takes the bumps on his head -- crushed by the ceiling it meets,
 folding up like an accordion -- its four bands its panels, two pleats a side, zigzag: folded, still a bellows --, then unfolding -- instead of Leon being knocked out (the jolt shuts
 his eyes for `hat_bump_shut_time`, then he blinks, `hat_bump_blinks` times in `hat_bump_blink_time`); until it has unfolded, it protects no more.
 Dark matter (spikes) is no ceiling to it: the hat takes no bump off it and stops nothing -- squashed into what room is left over his head, it lets him live
@@ -123,7 +127,7 @@ fetch -- or, still lost as he comes near a spare-hat spot `h`, it waits there, p
 show on the screen, unless where it lies might show).
 The clocks show top right, each by its mode's name: EASY RUN, HARD RUN, DARK RUN, HARDER RUN, CAMELEON RUN --
 in a golden run, its own alone: SOLO RUN (the golden run's name on the screen: its clock, its highscores, its flag).
-Any clock still running at an hour (`clock_limit`, in hours:minutes:seconds) and Leon explodes -- then the title. Its last ten
+Any clock still running at an hour (`clock_limit`, in hours:minutes:seconds) and the player explodes. A Solo Run restarts at the beginning with a fresh countdown. Other modes return to the title. Its last ten
 seconds it shows in red, blinking, faster in the last two (`clock_*`). The title always shows the
 level from its start, whatever `start_level`: that place is taken as the game starts.
 The title comes up from black (held black until the window has settled into fullscreen, `fullscreen_toggle_wait`):
@@ -212,7 +216,7 @@ Leon is: none 5 tiles from the door (`golden_door_name_distance`, any way), whol
 there), each letter in the title's rolling rainbow, a wave swelling them one after the other: a gaussian bump up to
 `golden_door_name_zoom` (1.5) times their size, `golden_door_name_wave_width` letters wide, crossing it in
 `golden_door_name_wave_time` (1 s), then `golden_door_name_wave_pause` (1 s) at rest. A golden door open (either), both names
-fade out over `golden_door_name_fade_out` (2 s), for good (golden doors never close: till the game starts over). Through a golden door, open (his centre in its doorway, either way), Leon takes its colour, changing to it over `leon_color_change_time` (3 s): the Love door, pastel pink (`leon_color_love`), his hat pink all over with him (no stripes); the Solo door, gold (`leon_color_solo`), his hat as ever (white and the key's colour) -- his own colour from then on (no glow, unlike GOD's gold), a colour fly in him tinting him as ever. Nothing else changes it -- a golden run's start, a death: kept -- till the game starts over. The left room's far wall is open from the ground 4 tiles up: outside, for the first time -- open
+fade out over `golden_door_name_fade_out` (2 s), for good (golden doors never close: till the game starts over). Through a golden door, open (his centre in its doorway, either way), Leon takes its colour, changing to it over `leon_color_change_time` (3 s): the Love door, pastel pink (`leon_color_love`) in a regular game or 33% grey (RGB 85, 85, 85) in Solo, his whole hat taking the same colour; the Solo door, gold (`leon_color_solo`), his hat as ever (white and the key's colour) -- his own colour from then on (no glow, unlike GOD's gold), a colour fly in him tinting him as ever. Nothing else changes it -- a golden run's start, a death: kept -- till the game starts over. The left room's far wall is open from the ground 4 tiles up: outside, for the first time -- open
 air over the whole level (29 rows of it at the map's top, walled at its two ends). On the hall's roof, a pyramid --
 hollow, its two sides stairs of single tiles corner to corner, its top six tiles wide -- and on that top a tower, four
 tiles wide (a tile's ledge each side), thirteen high, up to the map's top row. In the right room, 8 tiles short of
@@ -236,16 +240,13 @@ say nothing -- and comes back on the start (`golden_fade_in`, 1 s). Over it, a d
 then drops, and his clock -- SOLO RUN, the only one, its letters in the title's rolling rainbow -- fades in
 (`golden_clock_fade_in`, 1 s); landed, the light fades out (`golden_light_fade_out`, 2 s) and, his shape settled
 (`golden_countdown_wait`, 1 s), 3, 2, 1, GO counts, as after Shift+Ctrl+R -- but his eyes wide open, not shut. No control of his from the black to GO.
-From GO, the clock runs and the start is his one checkpoint (no pineapple shows): the modes play out as the keys are
-taken -- their doors -- without clocks or highscores of their own -- to its golden door's music (the golden door kept open), the golden
-key fading it out, the left golden door's music once it opens. A
-death -- any: dark matter, eaten, a suicide -- and it all begins again, from the black, the world put back, the clock
-from nothing. The golden key is only a key in it (the left golden door's): the run goes on, up the shaft, through
+From GO, the clock runs and the start is his one checkpoint (no pineapple shows): keys still open their doors, and only the Solo clock and highscore count. The golden key fades the music out. Opening the Love door during Solo, or crossing it already open, keeps the tower route silent. The tower is empty and can be crossed freely. Reaching it leaves the player in control and Solo continues.
+Before the black flag, dying, falling off the map, or reaching the time limit starts a fresh Solo attempt with the same character and the 3, 2, 1, GO countdown. The golden key is only a key in it (the left golden door's): the run goes on, up the shaft, through
 the right golden door -- open still -- along the room, to the black flag. Touched, it goes up and stops the clock:
 `SOLO RUN COMPLETED !` appears at the top of the screen and the current character’s five Solo times appear at the bottom while near the flag. A qualifying time in an eligible run opens initials entry there. The raised flag becomes the checkpoint. (Into
 the snail again: another golden run, the black flag furled again till its end -- each one done, its time against the
 highscores, as many as are run before the game is closed; none in debug mode, as ever.)
-The ending (`workshop/specs and corrections/ending (draft).png`), through the Love room, up the tower: on its top -- the level's highest
+The regular game's ending (`workshop/specs and corrections/ending (draft).png`), through the Love room, up the tower: on its top -- the level's highest
 tiles, the map's side walls aside -- Anna waits on its last tile, his love and an almighty sorceress: a round blue body
 (`anna_color`), his eyes, following him wherever he is, a tall cone of a sorceress's hat (its ink finer than the brim's: 0.7 of the 3 pixels it was) on a brim of ink curled up at both ends (`anna_brim_size`, 0.8), over her head by the outline's
 thickness -- and no mouth. Over the top's second tile, an invisible ice wall, `ending_wall_height` (40) tiles up (above the map: never
@@ -284,8 +285,8 @@ Space, the title. (A bug report keeps where the ending is: `ending:` -- and the 
 The game always starts with Leon's. His game finished -- its Game Over reached --, the title becomes Anna's:
 GRAVITY ANNA, ANNA's letters a rainbow rolling through them (`title_anna_rainbow_speed`), Anna where Leon stood,
 and her game is played: Leon's in every way -- the level, the keys, the modes, the doors, the colours (white; the
-Solo door's gold, the Love door's pink), the checkpoints, the clocks -- but for her drawing, her hat, her dash and
-her start; Leon waits on the tower's top, in Anna's place -- blue as she is there (`anna_color`), his hat too --, and does there all she did (his eyes on her, the glow,
+Solo door's gold, the Love door's pink or Solo grey), the checkpoints, the clocks -- but for her drawing, her hat, her dash and
+her start; in the regular game Leon waits on the tower's top, in Anna's place -- blue as she is there (`anna_color`), his hat too --, and does there all she did (his eyes on her, the glow,
 the smile, the hearts, ^^, the sway, his brim a party horn), she all he did. Hers finished, the end reads "GAME
 100% OVER" between two hearts a side; then the title shows the two face to face where he starts, smiling, as on
 the tower's top -- each as when played: white, his hat banded, hers a checkerboard (no grape there) --, its name
@@ -300,7 +301,7 @@ till the game is closed -- launched again, it starts with Leon's game (a game fi
   lessons' (the banana, the kaki, the cherries): none of them in her game, the hat's spot empty. Instead, 4 tiles
   left of where she starts, a grape (a purple bunch). Eating it shows the dash lesson. She can already dash from the start. The grape is absent during a Solo Run.
 - **Her drawing**: the tower's Anna, played -- white as he is (gold through the Solo door, pink through the Love
-  door, as his), her round body in the cube's place (36 × 27 pixels for the drawn cube, a shared 30 × 38 pixel hitbox for movement), her
+  door in a regular game and grey there in Solo), her round body in the cube's place (36 × 27 pixels for the drawn cube, a shared 30 × 38 pixel hitbox for movement), her
   face and hat at 0.82 of the first drawing's size, her thinner legs (their thighs reaching up into her round
   bottom: no gap as her knees bend) and smaller feet; walking, jumping,
   pedalling, knocked out (an egg rolling, eyes crossed), getting up, her mouth split along the tongue as his (her body `anna_mouth_body_scale`, 0.9, of its size while it is
@@ -310,7 +311,7 @@ till the game is closed -- launched again, it starts with Leon's game (a game fi
   size, in her own colour (`anna_color`), her hat too, all of it.
 - **Her hat**: the cone, its four bands a checkerboard -- each split down its middle, the last key's colour (black
   before any) on one side, white on the other, the other way round from band to band; through the Love door,
-  pink all over. It is his hat in all it does (worn,
+  pink all over in a regular game or grey all over in Solo. It is his hat in all it does (worn,
   knocked off, fetched with the tongue), its four bands folding as his bellows does: from the top down, each band
   all the way before the next, to `anna_hat_squashed_height` (0.15) of its height; held folded
   (`hat_squashed_time`), then popping back up one by one from the lowest folded, `anna_hat_pop_delay` (0.25 s)
@@ -391,7 +392,7 @@ Blocks are dragged by sticking the tongue on them and walking away, or pushed by
 Back at his checkpoint with a block where he stands (dragged or pushed there), it is lifted two tiles up -- his way -- and
 falls back (onto him: it tips off); no room up there, it goes two tiles to his right, else to his left; none, back home.
 Out of the map (12 tiles past its edge, whichever way), Leon stops there, the world fades to black (`death_world_fade`)
-and he is back at his checkpoint, as after a death -- no pieces (a golden run not done: at its start, its clock going on).
+and he is back at his checkpoint, as after a death -- no pieces (an unfinished Solo Run starts again with a fresh clock and countdown; a finished Solo Run returns to its raised black flag).
 His pieces -- and a Monstermunch's blood cubes -- bounce and come to rest on their sides, their
 whole thickness above the ground.
 Back after a death, the screen fades in (`death_fade_in`); dead again before it is over, the fade in
@@ -475,7 +476,7 @@ new frame, neither tucks them nor swings them yet: landing on a gravity tile, hi
 - `assets/music/03 - tno - Tartopom.mod`, then `08 - tno - World Of Pistou II.mod` from the red flag up and
   `18 - tno - Dying Respect.mod` from the blue flag up (each change: fade out, silence, fade in --
   `music_fade_out`, `music_gap`, `music_fade_in`), and none from the violet flag up (it fades out) -- nor once a golden key is taken (it fades out
-  with it); then, a golden door opening, its own: the left one (the Love door: the love room) `niko - palindrome au piano.MP3`,
+  with it); then, a golden door opening, its own: the left one (the Love door) `niko - palindrome au piano.MP3` in a regular game, silence in Solo,
   the right one (the Solo door: the solo room) `nocomp - Power Plant (Ultimate Fan Mix).mp3` (the latest of these events wins: a golden key taken, silence again);
   till the game starts over. The music, looping (the modules played by the game's own `.mod` player,
   `src/modplayer.cpp` -- raylib's loader hangs on modules that loop back on themselves; the MP3s by raylib's). The sound

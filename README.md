@@ -39,14 +39,15 @@ Niko/Factory, with additional help from Myr and Ris.
 
 ## About the code
 
-Vibecoded with Claude Code Opus 5.5 Extra High. Made in C++ with raylib and SDL GameControllerDB. I used a multimodal approach combining...
-  1. lengthy text prompts 
-  2. hand drawn prompts (paper and computer)
-  3. in-game reporting system with snapshot + user input (use CTL+B in-game)
-See workshop directory for examples.
+Gravity Leon has been vibecoded with Claude Code Opus 5.5 Extra High. Made in C++ with raylib and SDL GameControllerDB. 
 
-Rough estimate : about 50 hours of human work 
-(excluding music, composed a quarter of a century ago)
+I used a multimodal approach combining...
+
+1. lengthy text prompts, including detailed software architecture and implementation guidelines
+2. hand-drawn prompts for design and gameplay (on paper and computer)
+3. in-game reporting system with snapshot + user input (CTL+B in-game)
+
+Rough estimate : about 50 hours of human work for concept, design, art and code orchestration. We composed the music a quarter of a century ago (protracker modules and mp3).
 
 ## Licence
 

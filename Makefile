@@ -76,8 +76,63 @@ dist_mac: dist $(MAC_ICON)
 	touch $(APP)
 	@echo "built $(APP) -- the game as a macOS app, with its icon"
 
-linux_dist windows_dist:
-	@echo "$@ packaging is not implemented yet"
+# Linux release with embedded resources and a static raylib.
+LINUX_DIST_OUT := dist/GravityLeon-linux
+
+ifeq ($(shell uname),Linux)
+  ifneq ($(wildcard $(RL_STATIC)),)
+    LINUX_RL_STATIC := $(RL_STATIC)
+    LINUX_RL_CFLAGS := $(RL_CFLAGS)
+    LINUX_RL_LIBS := $(filter-out -lraylib,$(shell pkg-config --static --libs raylib))
+  else
+    LINUX_RL_STATIC := $(RL_LOCAL)/libraylib.a
+    LINUX_RL_CFLAGS := -I$(RL_LOCAL)
+    LINUX_RL_LIBS := -l:libX11.so.6 -lm -lpthread -ldl -lrt
+  endif
+endif
+
+linux_dist:
+ifneq ($(shell uname),Linux)
+	@echo "make linux_dist requires Linux"; exit 1
+else
+	@test -f "$(LINUX_RL_STATIC)" || { echo "Install static raylib via pkg-config or build $(RL_LOCAL)/libraylib.a" >&2; exit 1; }
+	@mkdir -p dist
+	python3 tools/update_dist_highscores.py
+	@set -eu; \
+	build_dir=$$(mktemp -d dist/.linux-dist.XXXXXX); \
+	trap 'rm -rf "$$build_dir"' EXIT; \
+	python3 tools/embed_gen.py "$$build_dir/embed_data.cpp" . data/params.txt levels assets data; \
+	$(CXX) $(CXXFLAGS) $(BUILD_TIME_FLAG) -DEMBED_ASSETS -include src/embed.h $(LINUX_RL_CFLAGS) \
+		$(SRCS) "$$build_dir/embed_data.cpp" -o "$$build_dir/GravityLeon-linux" "$(LINUX_RL_STATIC)" $(LINUX_RL_LIBS); \
+	strip "$$build_dir/GravityLeon-linux"; \
+	mv "$$build_dir/GravityLeon-linux" "$(LINUX_DIST_OUT)"
+	@echo "built $(LINUX_DIST_OUT) -- one file, resources embedded"
+endif
+
+# Windows release built with MinGW-w64 (including MSYS2 UCRT64).
+WINDOWS_DIST_OUT := dist/GravityLeon.exe
+WINDOWS_CXX ?= $(CXX)
+WINDOWS_RL_STATIC ?= $(RL_STATIC)
+WINDOWS_RL_CFLAGS ?= $(RL_CFLAGS)
+WINDOWS_PYTHON ?= python3
+
+windows_dist:
+	@case "$$($(WINDOWS_CXX) -dumpmachine)" in \
+		*mingw*) ;; \
+		*) echo "make windows_dist requires a MinGW-w64 C++ compiler (WINDOWS_CXX)" >&2; exit 1 ;; \
+	esac
+	@test -f "$(WINDOWS_RL_STATIC)" || { echo "Set WINDOWS_RL_STATIC to the MinGW-w64 libraylib.a" >&2; exit 1; }
+	@mkdir -p dist
+	$(WINDOWS_PYTHON) tools/update_dist_highscores.py
+	@set -eu; \
+	build_dir=$$(mktemp -d dist/.windows-dist.XXXXXX); \
+	trap 'rm -rf "$$build_dir"' EXIT; \
+	$(WINDOWS_PYTHON) tools/embed_gen.py "$$build_dir/embed_data.cpp" . data/params.txt levels assets data; \
+	$(WINDOWS_CXX) $(CXXFLAGS) $(BUILD_TIME_FLAG) -DEMBED_ASSETS -include src/embed.h $(WINDOWS_RL_CFLAGS) \
+		$(SRCS) "$$build_dir/embed_data.cpp" -o "$$build_dir/GravityLeon.exe" \
+		"$(WINDOWS_RL_STATIC)" -static -s -mwindows -lopengl32 -lgdi32 -lwinmm -lpsapi; \
+	mv "$$build_dir/GravityLeon.exe" "$(WINDOWS_DIST_OUT)"
+	@echo "built $(WINDOWS_DIST_OUT) -- one file, resources embedded"
 
 distclean:
 	rm -rf dist

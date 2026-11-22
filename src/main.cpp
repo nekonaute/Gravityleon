@@ -918,9 +918,10 @@ struct Level {
     std::vector<Vector2> spareHats;           // 'h': where a lost hat waits -- still lost as he comes near one (spareHatStep)
     // The ending's place (workshop/ending (draft).png): the level's highest tiles -- the tower's top.
     // Leon's end on its first tile, Anna waiting on its last, and over its second an invisible ice
-    // wall endWallH tiles high (ending_wall_height: the game sets it) -- never drawn.
+    // wall endWallH tiles high (ending_wall_height in a regular game, zero in Solo) -- never drawn.
     int endX0 = -1, endX1 = -1, endY = 0;     // its first and last tiles, its row (-1: none)
     int endWallH = 0;
+    bool hasLoveEnding() const { return endX0 >= 0 && endWallH > 0; }
     bool endWall(int x, int y) const { return endX0 >= 0 && x == endX0 + 1 && y < endY && y >= endY - endWallH; }
     Vector2 annaFeet() const { return {(endX1 + 0.5f) * kTile, endY * kTile}; }
     std::vector<bool> pineRight;              // 'a' (a pineapple as 'A'): back there, he faces right -- his right, as the screen shows it
@@ -1691,6 +1692,7 @@ struct Game {
     // landed, the light fades out (golden_light_fade_out) and, golden_countdown_wait later, main counts
     // 3, 2, 1, GO -- his controls his own again only then. A death in it: all of it again, from the black.
     bool goldenRun = false, goldenDone = false;
+    void updateEndingWall() { level.endWallH = goldenRun ? 0 : (int)t.endWallH; }
     float goldenTime = 0;
     float goldenSeq = -1;                     // seconds into its way in (-1: none)
     float goldenOutT = -1;                    // the start's light fading out: seconds since he landed (-1: not)
@@ -1741,7 +1743,7 @@ struct Game {
     bool eyesHeld = false;                    // 3, 2, 1: his eyes shut till GO -- in a golden run, wide open, no blink (main)
     bool fromSuicide = false;                 // this death his own doing: back at the start of the mode he was in...
     bool wantCountdown = false;               // ...then 3, 2, 1, GO (main)
-    bool timeUp = false, timeUpOver = false;  // a clock's hour run out: he explodes, then the title (main)
+    bool timeUp = false, timeUpOver = false;  // an expired clock: he explodes, then retries Solo or returns to the title
     // The hat, knocked off by a Monstermunch or the first bend of the Solo pit: falling with his gravity, bouncing,
     // rolling, then lying where it ends up, upright -- his again when he touches it, or when his
     // tongue catches it: on its tip, brought back, then curled up over his head to put it on.
@@ -1913,24 +1915,24 @@ struct Game {
     bool blackFlagTouched = false;            // ...and touched yet (its highscores show by it)
     // His own colour, with no colour fly in him (one in him tints him as ever, from white): white at
     // first; through a golden door, open, the door's -- the Solo door, gold (leon_color_solo), the Love
-    // door, pastel pink (leon_color_love) --, changing to it over leon_color_change_time. Nothing else
+    // door, pastel pink (leon_color_love) or one-third grey in Solo, over leon_color_change_time. Nothing else
     // changes it (a golden run's start, a death: kept), till the game starts over. No glow.
-    int own = 0;                              // 0 white, 1 gold (the Solo door), 2 pastel pink (the Love door)...
+    int own = 0;                              // 0 white, 1 Solo door, 2 Love door
     Color ownFrom = kBody;                    // ...changing from this colour...
-    float ownPinkFrom = 0;                    // ...his hat's pink from this much (hatPink)...
+    float hatTintFrom = 0;                    // ...his hat's Love-door tint from this much...
     float ownT = -1;                          // ...for this many seconds (-1: no change going on)
-    Color ownColour(int k) const { return k == 1 ? t.leonSolo : k == 2 ? t.leonLove : kBody; }   // (Anna playing: the same)
+    Color loveDoorColour() const { return goldenRun ? Color{224, 224, 224, 255} : t.leonLove; }
+    Color ownColour(int k) const { return k == 1 ? t.leonSolo : k == 2 ? loveDoorColour() : kBody; }
     Color bodyColour() const {
         Color to = ownColour(own);
         return ownT >= 0 && ownT < t.leonColorTime ? ColorLerp(ownFrom, to, ownT / t.leonColorTime) : to;
     }
-    // His hat, as his own colour goes: through the Love door, pink all over -- its white and its bands
-    // alike, no stripes; the Solo door's gold, not (as ever). How pink, 0 to 1, changing with him.
-    float hatPink() const {
+    // The Love door tints both the hat's white and its bands as the body changes colour.
+    float hatDoorTint() const {
         float to = own == 2 ? 1.0f : 0.0f;
-        return ownT >= 0 && ownT < t.leonColorTime ? lerpf(ownPinkFrom, to, ownT / t.leonColorTime) : to;
+        return ownT >= 0 && ownT < t.leonColorTime ? lerpf(hatTintFrom, to, ownT / t.leonColorTime) : to;
     }
-    Color hatWhite() const { return ColorLerp(kBody, t.leonLove, hatPink()); }
+    Color hatDoorColour(Color base) const { return ColorLerp(base, loveDoorColour(), hatDoorTint()); }
     // Each door: seconds since the key went into it (-1: locked). It turns gold, still shut, over
     // door_gold_time; then it is open -- its tiles blanked -- and fades out over door_fade_time.
     std::vector<float> doorT;
@@ -1953,14 +1955,17 @@ struct Game {
     std::vector<std::pair<int, float>> partsDone;
     int musicPart = 0;                        // the music wanted: 0 the level's, 1 from the red flag up, 2 from the blue flag, 3 none (the violet flag up)
     // After a golden key, the music is the latest of these: a golden key taken, none (3: it fades out); a
-    // golden door open, its own -- the left one's (4), the right one's (5). -1: none of it yet.
+    // golden door open, the left one's piano (4) or silence in Solo, the right one's music (5). -1: none of it yet.
     int goldMusic = -1;
     int goldDoorRank(size_t i) const {        // a golden door's rank in map order: 0 the left one (Love door), 1 the right one (Solo door)
         int r = 0;
         for (size_t j = 0; j < i; j++) if (level.doorChar[j] == 'O') r++;
         return r;
     }
-    int goldDoorMusic(size_t i) const { return goldDoorRank(i) == 0 ? 4 : 5; }
+    int goldDoorMusic(size_t i) const {
+        if (goldDoorRank(i) == 0) return goldenRun ? 3 : 4;
+        return 5;
+    }
     bool goldTaken() const {                  // a golden key taken -- or a golden run: the game's end, from then on
         return goldenRun || std::find(goldKeyTaken.begin(), goldKeyTaken.end(), true) != goldKeyTaken.end();
     }
@@ -2280,7 +2285,8 @@ struct Game {
         tgCrate = -1; pulling = false;
         dead = false; deadT = 0; pieces.clear(); goneT = lostT = -1;
         goldenRun = goldenDone = false; goldenTime = 0; goldenSeq = goldenOutT = goldenLandAt = goldenClockAt = goldKeyAt = -1;
-        own = 0; ownFrom = ownColour(0); ownPinkFrom = 0; ownT = -1;
+        updateEndingWall();
+        own = 0; ownFrom = ownColour(0); hatTintFrom = 0; ownT = -1;
         endT = endLandT = -1; hearts.clear(); heartDue = 0;      // (the ending: not yet)
         creditsK = 1; creditsGain = 0; endOffT = -1;
         lastKey = -1;
@@ -2403,11 +2409,13 @@ struct Game {
         float seq = goldenSeq;
         int part = t.startPart, wasOwn = own;
         Color wasFrom = ownFrom;
-        float wasT = ownT, wasPinkFrom = ownPinkFrom;
+        float wasT = ownT, wasHatTint = hatTintFrom;
         t.startPart = 0;
         reset();
         t.startPart = part;
-        own = wasOwn; ownFrom = wasFrom; ownPinkFrom = wasPinkFrom; ownT = wasT;   // (his colour as it was: only a golden door changes it)
+        goldenRun = true; goldenSeq = seq;
+        updateEndingWall();
+        own = wasOwn; ownFrom = wasFrom; hatTintFrom = wasHatTint; ownT = wasT;
         for (size_t i = 0; i < doorT.size(); i++)
             if (keep[i]) { doorT[i] = t.doorGold + t.doorFade; openDoor(i); }
         hatTaken = true; hasHat = false; hatLoose = false;   // (not on him, not at its spot)
@@ -2417,7 +2425,6 @@ struct Game {
         for (size_t i = 0; i < level.fruits.size(); i++) if (level.fruitKind[i] == 'U' || level.fruitKind[i] == 'Z') fruitEaten[i] = true;
         cherryEaten.assign(cherryEaten.size(), true);
         facing = 1;                                          // (facing right, whatever he faced)
-        goldenRun = true; goldenSeq = seq;
         notePowers(5);
         Vector2 at = goldenLightAt();
         pos = prevPos = toLocal({at.x, at.y + kLeonH / 2});
@@ -4589,7 +4596,7 @@ struct Game {
         else deadT += realDt;
         piecesStep(realDt * t.piecesSpeed);   // the pieces fly in slow motion (their gravity too)
         if (deadT < t.deathPiecesWait + t.deathPiecesFade) return;
-        if (timeUp) { timeUpOver = true; return; }       // (main: back to the title)
+        if (timeUp && !goldenRun) { timeUpOver = true; return; }
         bool own = fromSuicide;
         if (own) restartMode();
         respawn();
@@ -4631,7 +4638,7 @@ struct Game {
     // The ending (endT): the wall touched -- his box and a pixel round it --, then the landing, then
     // the clock of it all.
     void endingStep(float dt) {
-        if (level.endX0 < 0) return;
+        if (!level.hasLoveEnding()) return;
         if (endT < 0) {
             Rectangle b = turnBox(grav, pos.x - kLeonW / 2 - 1, pos.y - kLeonH - 1, pos.x + kLeonW / 2 + 1, pos.y + 1);
             Rectangle w = {(level.endX0 + 1) * kTile, (float)(level.endY - level.endWallH) * kTile, kTile, level.endWallH * kTile};
@@ -5265,7 +5272,6 @@ struct Game {
 
     void step(float dt) {
         prevPos = pos;
-        level.endWallH = (int)t.endWallH;          // (the ending's wall: ending_wall_height, read live)
         if (lessonT >= 0) lessonT += dt;
         for (float& f : flagT) if (f >= 0) f += dt;
         if (blackFlagT >= 0) blackFlagT += dt;
@@ -5319,6 +5325,7 @@ struct Game {
         }
         if (lostT >= 0 && (lostT += dt) >= t.deathWorldFade) {   // out of the map, the screen black: back at his checkpoint
             respawn();
+            if (goldenRun && !goldenDone) { goldenAgain(); return; }
             if (trace) fprintf(stderr, "t=%.2f out of the map: back at the checkpoint\n", time);
         }
         if (gone() || goldenHeld() || lostT >= 0) {   // into a dark light, and faded out -- or held in the golden run's, or out of the map: the world goes on without him
@@ -5629,19 +5636,20 @@ struct Game {
             }
         }
         // Through a golden door, open -- his centre in its doorway --, its colour his: the Love door (the
-        // left one), pastel pink; the Solo door, gold.
+        // left one), pastel pink or Solo's grey; the Solo door, gold.
         for (size_t i = 0; i < doorT.size(); i++)
             if (level.doorChar[i] == 'O' && doorT[i] >= t.doorGold && CheckCollisionPointRec(centreW(), level.doors[i])) {
                 int k = goldDoorRank(i) == 0 ? 2 : 1;
+                if (goldenRun && k == 2) goldMusic = 3;   // the Love door may already be open from a previous attempt
                 if (k == own) continue;
-                ownFrom = bodyColour(); ownPinkFrom = hatPink(); own = k; ownT = 0;
-                if (trace) fprintf(stderr, "t=%.2f through the %s door: %s\n", time, k == 2 ? "Love" : "Solo", k == 2 ? "pastel pink" : "gold");
+                ownFrom = bodyColour(); hatTintFrom = hatDoorTint(); own = k; ownT = 0;
+                if (trace) fprintf(stderr, "t=%.2f through the %s door\n", time, k == 2 ? "Love" : "Solo");
             }
         if (darkMode && !darkDone) darkTime += dt;
         if (harderMode && !harderDone) harderTime += dt;
         if (camMode && !camDone) camTime += dt;
         if (clockRuns(5)) goldenTime += dt;
-        for (int k = 0; k < 6; k++)                      // a clock run up to clock_limit (an hour): he explodes -- then the title
+        for (int k = 0; k < 6; k++)                      // a clock run up to clock_limit (an hour): he explodes
             if (clockRuns(k) && clockOf(k) >= t.clockLimit) {
                 timeUp = true;
                 if (trace) fprintf(stderr, "t=%.2f clock %d at its limit: Leon explodes\n", time, k);
@@ -6184,7 +6192,7 @@ struct Game {
         appendf(o, "leon.abilities: %d %d   (double jump, tongue)\n", canDouble ? 1 : 0, canTongue ? 1 : 0);
         appendf(o, "leon.god: %d   (GOD: debug mode, Shift+G)\n", god ? 1 : 0);
         appendf(o, "player: %s   (who plays: leon, or anna -- Leon then waiting on the tower's top)\n", anna ? "anna" : "leon");
-        appendf(o, "leon.colour: %d %.3f   (his own: 0 white, 1 gold -- the Solo door --, 2 pastel pink -- the Love door --; seconds into changing to it, -1 done)\n", own, ownT >= 0 && ownT < t.leonColorTime ? ownT : -1.0f);
+        appendf(o, "leon.colour: %d %.3f   (his own: 0 white, 1 Solo door gold, 2 Love door pink or Solo grey; seconds into changing to it, -1 done)\n", own, ownT >= 0 && ownT < t.leonColorTime ? ownT : -1.0f);
         appendf(o, "leon.hat: %d %.3f   (wearing it; seconds since it took a bump, -1 whole)\n", hasHat ? 1 : 0, hatT);
         appendf(o, "hat.taken: %d   (from its spot in the level)\n", hatTaken ? 1 : 0);
         appendf(o, "hat.loose: %d %.2f %.2f   (knocked off his head: lying there, world pixels)\n", hatLoose ? 1 : 0, hatP.x, hatP.y);
@@ -6218,6 +6226,7 @@ struct Game {
                 camDone ? 1 : 0, camTime);
         appendf(o, "golden.run: %d %d %.3f   (on -- after a dark light --, done -- the black flag reached --, its clock)\n", goldenRun ? 1 : 0,
                 goldenDone ? 1 : 0, goldenTime);
+        appendf(o, "golden.music: %d   (-1 regular soundtrack, 3 silence, 4 Love door, 5 Solo door)\n", goldMusic);
         appendf(o, "flag.black: %d %d   (touched -- its highscores showing --, up -- the golden run done by it)\n", blackFlagTouched ? 1 : 0,
                 blackFlagT >= 0 ? 1 : 0);
         appendf(o, "key.held: %d %d %d %d %d   (red -- the exit's, taken, or start_with_key's --, blue, green, purple and golden, for doors)\n",
@@ -6278,10 +6287,6 @@ struct Game {
             if (sscanf(v, "%d %f", &a, &ht) >= 1) { hasHat = a != 0; hatT = ht; }
         }
         if (const char* v = get("hat.taken")) hatTaken = atoi(v) != 0;
-        if (const char* v = get("ending")) {
-            hearts.clear(); heartDue = 0; creditsK = 1; creditsGain = 0; endOffT = -1;   // (an older report: no gain, not off yet)
-            sscanf(v, "%f %f %f %f", &endT, &endLandT, &creditsGain, &endOffT);
-        }
         if (const char* v = get("hat.loose")) {
             int on = 0;
             if (sscanf(v, "%d %f %f", &on, &x, &y) == 3 && on) { hatLoose = true; hatP = {x, y}; hatV = {0, 0}; hatW = 0; hatA = 0; }
@@ -6344,6 +6349,9 @@ struct Game {
             float tm = 0;
             if (sscanf(v, "%d %d %f", &on, &dn, &tm) == 3) { goldenRun = on != 0; goldenDone = dn != 0; goldenTime = tm; }
         }
+        updateEndingWall();
+        if (const char* v = get("ending"); v && level.hasLoveEnding())
+            sscanf(v, "%f %f %f %f", &endT, &endLandT, &creditsGain, &endOffT);
         blackFlagTouched = false; blackFlagT = goldenDone && level.blackFlag.has ? 10.0f : -1;   // (an older report: up if the run was done)
         if (const char* v = get("flag.black")) {
             int tc = 0, up = 0;
@@ -6383,9 +6391,16 @@ struct Game {
             lastKey = any(goldKeyTaken) ? 4 : any(purpleKeyTaken) ? 3 : any(blueKeyTaken) ? 1 : any(greenKeyTaken) ? 2 : completed ? 0 : -1;
             if (const char* v = get("key.last")) lastKey = std::clamp(atoi(v), -1, 4);
         }
-        goldMusic = goldTaken() ? 3 : -1;                         // (the music after a golden key: the golden door opened last -- else none)
-        for (size_t i = 0, last = 0; i < doorT.size(); i++)
-            if (level.doorChar[i] == 'O' && doorT[i] >= t.doorGold && (goldMusic < 4 || doorT[i] < doorT[last])) { goldMusic = goldDoorMusic(i); last = i; }
+        if (const char* v = get("golden.music")) {
+            int track = atoi(v);
+            goldMusic = track >= 3 && track <= 5 ? track : -1;
+        } else {   // Older reports: infer the music from the last door opened and the player's colour.
+            size_t last = doorT.size();
+            for (size_t i = 0; i < doorT.size(); i++)
+                if (level.doorChar[i] == 'O' && doorT[i] >= t.doorGold && (last == doorT.size() || doorT[i] < doorT[last])) last = i;
+            goldMusic = last < doorT.size() ? goldDoorMusic(last) : goldTaken() ? 3 : -1;
+            if (goldenRun && own == 2) goldMusic = 3;
+        }
         if (const char* v = get("key.held")) {
             int r = 0, b = 0, gk = 0, pk = 0, ok = 0;
             int n = sscanf(v, "%d %d %d %d %d", &r, &b, &gk, &pk, &ok);
@@ -7627,8 +7642,8 @@ static void drawStar(Vector2 c, float R, float rot, Color fill, float outline) {
 // squeezed, the panels fold out -- and stay deep until it is nearly open, as stiff panels do -- the
 // ridges and creases thin lines across, its sides' ink thinner.
 static const float kBrimHalf = 1.25f;                // half the brim's thickness
-static Color gHatWhite = kBody;               // the hat's white: on his head, gLeonHat (drawLeon); knocked off, its own (Game::hatWhite); at its spot, white
-static Color gHatBand = kInk;                 // its coloured bands: the last key taken's colour -- black before any; the Love door's pink (main)
+static Color gHatWhite = kBody;               // the hat's white: on his head, gLeonHat; knocked off, its own tint; at its spot, white
+static Color gHatBand = kInk;                 // its bands: the latest key's colour (black before any), tinted by the Love door
 static void drawHat(Vector2 base, float deg, float hl, float hr, float curl = 1) {
     const float cw = 15, hL = kHatCrown * hl, hR = kHatCrown * hr;
     const int n = 4;                                     // panels a side, from the brim up: crease, ridge, ...
@@ -7699,7 +7714,7 @@ static void drawAnnaHat(Vector2 base, float deg, const float h[4], float lean, f
 static float annaSquint(const Game& g) { return 1 - (1 - g.t.dashEyes) * g.dashSquint(); }
 static bool leonHat(const Game& g) { return g.hasHat && (gHatOnly || (!gEyesOnly && !gNoHat)); }
 static Color gLeonBody = kBody;               // his body's colour: his own (Game::bodyColour) -- tinted with a colour fly in his belly...
-static Color gLeonHat = kBody;                // ...his hat's, on his head: the Love door's pink (Game::hatWhite; the Solo door's gold, not), the fly's tint (GOD: golden)
+static Color gLeonHat = kBody;                // ...his hat's white, on his head: the Love-door tint, the fly's tint, or GOD's gold
 static float gPupilR = 1.9f;                  // his pupils' radius (GOD too: as ever)
 static Color gTongue = kTongue;               // his tongue's: pink -- with a colour fly in his belly, the fly's colour
 // A colour, paler: its saturation down to `keep` of it, a little lighter for it.
@@ -7944,7 +7959,7 @@ static void drawLeonFigure(const Game& g, const StandPose& P);
 static void drawAnnaFigure(const Game& g, const StandPose& P);
 // The tower's top: Anna, waiting for him -- or, Anna playing, Leon waiting for her.
 static void drawAnna(const Game& g) {
-    if (g.level.endX0 < 0) return;
+    if (!g.level.hasLoveEnding()) return;
     const Vector2 F = g.level.annaFeet();
     if (!inView({F.x, F.y - 45}, 70)) return;
     const StandPose P = {F, g.centreW().x < F.x ? -1.0f : 1.0f, g.centreW(), g.endSway(), g.endGlow(), g.endSmile(), g.endBrimCurl(),
@@ -9876,10 +9891,19 @@ static bool readReport(const std::string& path, std::map<std::string, std::strin
     return true;
 }
 
+static struct tm localTime(time_t now) {
+    struct tm tmv{};
+#ifdef _WIN32
+    localtime_s(&tmv, &now);
+#else
+    localtime_r(&now, &tmv);
+#endif
+    return tmv;
+}
+
 static std::string screenshotPath(const char* name, bool withSeconds) {
     time_t now = time(nullptr);
-    struct tm tmv;
-    localtime_r(&now, &tmv);
+    struct tm tmv = localTime(now);
     char stamp[32];
     strftime(stamp, sizeof(stamp), withSeconds ? "%Y%m%d_%H%M%S" : "%Y%m%d_%H%M", &tmv);
     if (!DirectoryExists("screenshots")) MakeDirectory("screenshots");
@@ -11308,8 +11332,7 @@ int main(int argc, char** argv) {
         if (reportShot.data) UnloadImage(reportShot);
         reportShot = gameShot();
         time_t now = ::time(nullptr);
-        struct tm tmv;
-        localtime_r(&now, &tmv);
+        struct tm tmv = localTime(now);
         char b1[32], b2[32];
         strftime(b1, sizeof(b1), "%Y%m%d_%Hh%Mm%Ss", &tmv);
         strftime(b2, sizeof(b2), "%Y-%m-%d %H:%M:%S", &tmv);
@@ -11370,7 +11393,7 @@ int main(int argc, char** argv) {
             reloadCheck = 0;
             if (g.params.reloadIfChanged()) {
                 bool engraveWas = g.t.engrave;
-                g.t.read(g.params); Input::setDeadzone(g.t.deadzone); applyAudio();
+                g.t.read(g.params); g.updateEndingWall(); Input::setDeadzone(g.t.deadzone); applyAudio();
                 if (startLevelArg >= 0) g.t.startPart = startLevelArg;
                 if (g.t.engrave != engraveWas) {          // params switched the look
                     g.engrave = g.t.engrave;
@@ -12025,10 +12048,10 @@ int main(int argc, char** argv) {
         gAnnaMouthScale = g.t.annaMouthScale; gAnnaMouthH = g.t.annaMouthHeight;
         gLeonBody = g.god ? kGold : bellyCol >= 0 ? tinted(bellyCol) : g.bodyColour();   // (GOD: golden)
         gLeonBody = ColorLerp(gLeonBody, kPaper, g.endGlow());     // (the ending, face to face with Anna: glowing)
-        gLeonHat = g.god ? kGold : bellyCol >= 0 ? tinted(bellyCol) : g.hatWhite();   // (his hat's white: the Love door's pink, a fly's tint, GOD's gold -- the Solo door's gold, not)
+        gLeonHat = g.god ? kGold : bellyCol >= 0 ? tinted(bellyCol) : g.hatDoorColour(kBody);
         gHatBand = g.lastKey >= 0 ? g.t.keyCol[g.lastKey] : kInk;   // (the hat's bands: the last key's colour, black before any)
         gHatBand.a = 255;
-        gHatBand = ColorLerp(gHatBand, g.t.leonLove, g.hatPink());  // (through the Love door: pink, as its white -- no stripes)
+        gHatBand = g.hatDoorColour(gHatBand);
         gTongue = bellyCol < 0 ? kTongue : g.t.colorOf[bellyCol];
         auto cloudNear = [&](Vector2 q, float reach) {     // a puff of any colour, within `reach` of q
             Vector2 p;
@@ -12076,7 +12099,7 @@ int main(int argc, char** argv) {
             rlPushMatrix();
             rlTranslatef(g.hatP.x, g.hatP.y, 0);
             rlRotatef(g.hatA, 0, 0, 1);
-            gHatWhite = g.hatKeep >= 0 ? tinted(g.hatKeep) : g.hatWhite();   // (the colour it keeps a while -- else its own, as on his head)
+            gHatWhite = g.hatKeep >= 0 ? tinted(g.hatKeep) : g.hatDoorColour(kBody);
             if (g.anna) annaHatOff(gHatWhite);
             else drawHat({0, 11}, 0, 1, 1);
             gHatWhite = kBody;
