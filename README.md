@@ -6,7 +6,7 @@ Side A: Leon le Cameleon races against the clock in a punishingly difficult 2D p
 
 Side B: Gravity Leon is a documented experiment with Vibe Coding for gameplay design. See *about the code* Section below.
 
-![Gravity Leon visuals](workshop/screenshots selection/gravity-leon-visuals.png)
+<img src="workshop/screenshots%20selection/gravity-leon-visuals.png" alt="Gravity Leon visuals" width="600">
 
 ## Technical stuff
 
