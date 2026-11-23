@@ -6,6 +6,8 @@ Side A: Leon le Cameleon races against the clock in a punishingly difficult 2D p
 
 Side B: Gravity Leon is a documented experiment with Vibe Coding for gameplay design. See *about the code* Section below.
 
+![Gravity Leon visuals](workshop/screenshots/gravity-leon-visuals.png)
+
 ## Technical stuff
 
 Requirements: C++17, raylib.
@@ -48,6 +50,8 @@ I used a multimodal prompting approach combining...
 3. in-game reporting system with snapshot + user input (CTL+B in-game)
 
 Rough estimate : about 50 hours of human work for concept, design, art and code orchestration. We composed the music a quarter of a century ago (protracker modules and mp3).
+
+[How I built Gravity Leon with vibecoding (PDF slides)](workshop/vibecoding%20gravity-leon%20PDF.pdf)
 
 ## Licence
 
