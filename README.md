@@ -2,9 +2,9 @@
 
 Play it on [itch.io](https://nikofactory.itch.io/gravity-leon) (free).
 
-Side A: Leon le Cameleon races against the clock in a punishingly difficult 2D platformer. Can you top the leaderboard?
+**Side A**: Leon le Cameleon races against the clock in a punishingly difficult 2D platformer. Can you top the leaderboard?
 
-Side B: Gravity Leon is a documented experiment with Vibe Coding for gameplay design. See *about the code* Section below.
+**Side B**: Gravity Leon is a documented experiment with Vibe Coding for gameplay design. See *about the code* Section below.
 
 <img src="workshop/screenshots%20selection/gravity-leon-visuals.png" alt="Gravity Leon visuals" width=100%>
 
@@ -33,11 +33,11 @@ Niko/Factory, with additional help from Myr and Ris.
 
 ### Music
 
-*Easy and Hard runs* : "Tartopom", by tno/Factory, 1997
-*Dark and Harder runs* : "World Of Pistou II", by tno/Factory, 1998
-*Cameleon run* : "Dying Respect", by tno/Factory, 1999
-*Love run* : "Palindrome au piano", Niko/Factory, 2002
-*Solo run* : "Power Plant (Ultimate Fan Mix)", by tno/Factory, 2002
+- *Easy and Hard runs* : "Tartopom", by tno/Factory, 1997
+- *Dark and Harder runs* : "World Of Pistou II", by tno/Factory, 1998
+- *Cameleon run* : "Dying Respect", by tno/Factory, 1999
+- *Love run* : "Palindrome au piano", Niko/Factory, 2002
+- *Solo run* : "Power Plant (Ultimate Fan Mix)", by tno/Factory, 2002
 
 ## About the code
 
