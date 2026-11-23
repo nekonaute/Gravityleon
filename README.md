@@ -58,4 +58,5 @@ Rough estimate : about 50 hours of human work for concept, design, art and code 
 CC BY-SA 4.0
 * Share — copy and redistribute the material in any medium or format for any purpose, even commercially.
 * Adapt — remix, transform, and build upon the material for any purpose, even commercially.
+
 Details on [Creative Commons](https://creativecommons.org/licenses/by-sa/4.0/deed.en)
