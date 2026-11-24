@@ -6,6 +6,8 @@ Play it on [itch.io](https://nikofactory.itch.io/gravity-leon) (free).
 
 **Side B**: Gravity Leon is a documented experiment with Vibe Coding for gameplay design. See *about the code* Section below.
 
+Gameplay video on [Youtube](https://www.youtube.com/watch?v=YKK2RJ8WRWI).
+
 <img src="workshop/screenshots%20selection/gravity-leon-visuals.png" alt="Gravity Leon visuals" width=100%>
 
 ## Technical stuff
